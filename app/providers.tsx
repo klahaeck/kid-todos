@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
+import { ConfettiProvider } from "@/components/confetti-provider";
+import { ThemeApplier } from "@/components/theme-applier";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -18,9 +20,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ConfettiProvider>
+        <ThemeApplier />
+        {children}
+      </ConfettiProvider>
       {process.env.NODE_ENV === "development" ? (
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
       ) : null}
     </QueryClientProvider>
   );

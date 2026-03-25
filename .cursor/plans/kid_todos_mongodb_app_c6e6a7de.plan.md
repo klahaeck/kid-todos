@@ -123,7 +123,7 @@ Group under `app/actions/` (or per-route `actions.ts`) with `"use server"`.
 - Completions: `toggleTaskCompletion(childId, taskId)`.
 - Settings: `updateTimezone`, `updateRoutineWindows` (profile and/or per-child).
 
-**React Query integration:** Define a small `**queryKeys`** object (e.g. `['dashboard']`, `['profile']`, `['admin']`). Mutations `**invalidateQueries`** for affected keys (narrow keys when possible). Use `**staleTime`** on stable bundles if you want fewer round trips; keep toggles feeling instant with `**setQueryData**` or optimistic updates optional.
+**React Query integration:** Define a small `**queryKeys`** object (e.g. `['dashboard']`, `['profile']`, `['admin']`). Mutations `**invalidateQueries`** for affected keys (narrow keys when possible). Use `**staleTime`** on stable bundles if you want fewer round trips; keep toggles feeling instant with `**setQueryData`** or optimistic updates optional.
 
 ## UI / routes
 
@@ -142,7 +142,7 @@ Group under `app/actions/` (or per-route `actions.ts`) with `"use server"`.
 
 ## Route protection (Clerk)
 
-- `**proxy.ts`**: `**clerkMiddleware()**` + `matcher` per [Clerk quickstart](https://clerk.com/docs/nextjs/getting-started/quickstart). Protect `/dashboard`, `/settings`, `/admin`.
+- `**proxy.ts`**: `**clerkMiddleware()`** + `matcher` per [Clerk quickstart](https://clerk.com/docs/nextjs/getting-started/quickstart). Protect `/dashboard`, `/settings`, `/admin`.
 - `**/admin**`: Require `**publicMetadata.role === "admin"**` in layout or middleware.
 
 ## First admin

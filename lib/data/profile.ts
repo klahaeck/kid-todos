@@ -1,9 +1,12 @@
 import type { Collection, Document, WithId } from "mongodb";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
+import { DEFAULT_COLOR_THEME, normalizeColorTheme } from "@/lib/color-themes";
 import type { ProfileDoc, ProfileDTO } from "@/lib/types";
 
 const DEFAULTS = {
-  timezone: "UTC",
+  colorTheme: DEFAULT_COLOR_THEME,
+  /** Empty until the user saves a zone from settings (UI defaults to device TZ). */
+  timezone: "",
   morningStart: "06:00",
   morningEnd: "12:00",
   eveningStart: "17:00",
@@ -18,6 +21,7 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
   return {
     id: p._id.toHexString(),
     clerkId: p.clerkId,
+    colorTheme: normalizeColorTheme(p.colorTheme),
     timezone: p.timezone,
     morningStart: p.morningStart,
     morningEnd: p.morningEnd,
@@ -36,6 +40,7 @@ export async function ensureProfileForClerkUser(
   const now = new Date();
   const doc: Omit<ProfileDoc, "_id"> = {
     clerkId,
+    colorTheme: DEFAULTS.colorTheme,
     timezone: DEFAULTS.timezone,
     morningStart: DEFAULTS.morningStart,
     morningEnd: DEFAULTS.morningEnd,
@@ -61,6 +66,7 @@ export async function getProfileByClerkId(
 export async function updateProfileForUser(
   clerkId: string,
   patch: Partial<{
+    colorTheme: string;
     timezone: string;
     morningStart: string;
     morningEnd: string;

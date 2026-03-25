@@ -1,8 +1,12 @@
+import type { ColorThemeId } from "@/lib/color-themes";
+
 export type Routine = "morning" | "evening";
 
 export type ProfileDoc = {
   _id: import("mongodb").ObjectId;
   clerkId: string;
+  /** UI color theme id; omit on legacy docs → treated as classic */
+  colorTheme?: string;
   timezone: string;
   morningStart: string;
   morningEnd: string;
@@ -50,6 +54,7 @@ export type CompletionDoc = {
 export type ProfileDTO = {
   id: string;
   clerkId: string;
+  colorTheme: ColorThemeId;
   timezone: string;
   morningStart: string;
   morningEnd: string;

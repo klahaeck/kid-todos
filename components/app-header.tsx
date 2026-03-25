@@ -14,10 +14,10 @@ export function AppHeader() {
   const isAdmin = user?.publicMetadata?.role === "admin";
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+    <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3">
       <Link
         href="/dashboard"
-        className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
+        className="text-lg font-semibold tracking-tight text-foreground"
       >
         Kid routines
       </Link>
@@ -25,26 +25,26 @@ export function AppHeader() {
         <Show when="signed-in">
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Dashboard
           </Link>
           <Link
             href="/routines"
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Routines
           </Link>
           <Link
             href="/settings"
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Settings
           </Link>
           {isLoaded && isAdmin ? (
             <Link
               href="/admin"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Admin
             </Link>
@@ -55,7 +55,7 @@ export function AppHeader() {
           <SignInButton mode="modal">
             <button
               type="button"
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
             >
               Sign in
             </button>
@@ -63,7 +63,7 @@ export function AppHeader() {
           <SignUpButton mode="modal">
             <button
               type="button"
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-600"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground"
             >
               Sign up
             </button>

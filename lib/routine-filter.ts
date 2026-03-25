@@ -10,10 +10,11 @@ function parseHm(s: string): number {
 
 /** Current clock time in `timezone` as minutes from midnight (for window checks). */
 export function currentMinutesInTimezone(timezone: string): number {
+  const tz = (timezone ?? "").trim() || "UTC";
   const date = new Date();
   try {
     const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: timezone,
+      timeZone: tz,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
@@ -34,7 +35,7 @@ export function currentMinutesInTimezone(timezone: string): number {
   }
   try {
     const s = date.toLocaleTimeString("en-GB", {
-      timeZone: timezone,
+      timeZone: tz,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
@@ -114,7 +115,7 @@ export function autoRoutineHeading(
   const r = resolveRoutineFilter("auto", profile, child);
   if (r === null) return "Today's tasks";
   if (r.length === 2) return "Morning & evening";
-  return r[0] === "morning" ? "Morning routine" : "Evening routine";
+  return r[0] === "morning" ? "Morning" : "Evening";
 }
 
 export type ProfileWindows = {

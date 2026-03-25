@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COLOR_THEME_IDS } from "@/lib/color-themes";
 
 export const routineSchema = z.enum(["morning", "evening"]);
 
@@ -42,6 +43,7 @@ export const reorderTasksSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
+  colorTheme: z.enum(COLOR_THEME_IDS).optional(),
   timezone: z.string().trim().min(1).max(64).optional(),
   morningStart: timeHmSchema.optional(),
   morningEnd: timeHmSchema.optional(),
