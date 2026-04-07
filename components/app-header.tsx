@@ -16,10 +16,11 @@ export function AppHeader() {
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3">
       <Link
-        href="/dashboard"
-        className="text-lg font-semibold tracking-tight text-foreground"
+        href="/"
+        className="text-lg font-bold tracking-tight text-foreground"
       >
-        Kid routines
+        <span aria-hidden className="mr-1">✦</span>
+        Starry Steps
       </Link>
       <nav className="flex items-center gap-3">
         <Show when="signed-in">

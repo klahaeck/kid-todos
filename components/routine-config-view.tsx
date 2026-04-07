@@ -21,13 +21,18 @@ import { GripVertical } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { getDashboardData } from "@/app/actions/dashboard";
-import { createChildAction, deleteChildAction } from "@/app/actions/children";
+import {
+  createChildAction,
+  deleteChildAction,
+  reorderChildrenAction,
+  updateChildAction,
+} from "@/app/actions/children";
 import {
   createTaskAction,
   deleteTaskAction,
   reorderTasksAction,
+  updateTaskAction,
 } from "@/app/actions/tasks";
-import { toggleTaskCompletionAction } from "@/app/actions/completions";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -40,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import type {
   ChildSectionDTO,
+  DashboardDTO,
   ProfileDTO,
   Routine,
   TaskDTO,
@@ -49,11 +55,128 @@ import {
   type RoutineTab,
 } from "@/lib/routine-filter";
 
+const CHILD_EMOJI_OPTIONS = [
+  "😀",
+  "😎",
+  "🥳",
+  "🤖",
+  "🦄",
+  "🐱",
+  "🐶",
+  "🦊",
+  "🐼",
+  "🦖",
+  "🧸",
+  "⚽",
+] as const;
+
+const MORE_CHILD_EMOJI_OPTIONS = [
+  "🌟",
+  "🚀",
+  "🎨",
+  "🎵",
+  "🧩",
+  "🛴",
+  "🦁",
+  "🐯",
+  "🐨",
+  "🐸",
+  "🐢",
+  "🐬",
+  "🌈",
+  "🪐",
+  "🦋",
+  "🐝",
+  "🐧",
+  "🦉",
+  "🐙",
+  "🦄",
+  "🐰",
+  "🐹",
+  "🐻",
+  "🐵",
+  "🦓",
+  "🦒",
+  "🦕",
+  "🦖",
+  "🐞",
+  "🌸",
+  "🌼",
+  "🍀",
+  "🌺",
+  "🌻",
+  "🌙",
+  "☀️",
+  "⭐",
+  "⚡",
+  "❄️",
+  "🔥",
+  "💧",
+  "🍎",
+  "🍓",
+  "🍉",
+  "🍌",
+  "🥕",
+  "🍪",
+  "🧁",
+  "🍿",
+  "⚽",
+  "🏀",
+  "🏈",
+  "⚾",
+  "🎾",
+  "🏐",
+  "🥇",
+  "🏆",
+  "🎯",
+  "🎲",
+  "🪁",
+  "🛼",
+  "🚲",
+  "🛹",
+  "🚂",
+  "✈️",
+  "🚁",
+  "🚒",
+  "🏰",
+  "🗺️",
+  "⛺",
+  "🎪",
+  "🎭",
+  "🎬",
+  "🎤",
+  "🎸",
+  "🥁",
+  "📚",
+  "✏️",
+  "🧪",
+  "🔬",
+  "💡",
+  "🛸",
+  "🤠",
+  "👑",
+  "🦸",
+  "🧙",
+  "🧚",
+  "🧜",
+  "🐉",
+  "🪄",
+  "❤️",
+  "💙",
+  "💚",
+  "💜",
+  "🧡",
+  "🤍",
+  "🖤",
+  "🤎",
+] as const;
+
 export function RoutineConfigView() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RoutineTab>("all");
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [newChildName, setNewChildName] = useState("");
+  const [newChildEmoji, setNewChildEmoji] = useState("");
   const [taskDrafts, setTaskDrafts] = useState<Record<string, string>>({});
   const [routineDrafts, setRoutineDrafts] = useState<
     Record<string, "morning" | "evening">
@@ -71,23 +194,15 @@ export function RoutineConfigView() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 
-  const toggleMut = useMutation({
-    mutationFn: async (vars: { childId: string; taskId: string }) => {
-      const r = await toggleTaskCompletionAction(vars.childId, vars.taskId);
-      if (!r.ok) throw new Error(r.error);
-      return r.data;
-    },
-    onSuccess: () => invalidate(),
-  });
-
   const addChildMut = useMutation({
-    mutationFn: async (name: string) => {
-      const r = await createChildAction({ name });
+    mutationFn: async (vars: { name: string; emoji?: string }) => {
+      const r = await createChildAction(vars);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
     onSuccess: () => {
       setNewChildName("");
+      setNewChildEmoji("");
       setAddChildOpen(false);
       invalidate();
     },
@@ -115,6 +230,15 @@ export function RoutineConfigView() {
     onSuccess: () => invalidate(),
   });
 
+  const updateChildMut = useMutation({
+    mutationFn: async (vars: { id: string; emoji: string | null }) => {
+      const r = await updateChildAction(vars);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onSuccess: () => invalidate(),
+  });
+
   const delTaskMut = useMutation({
     mutationFn: async (id: string) => {
       const r = await deleteTaskAction(id);
@@ -124,16 +248,173 @@ export function RoutineConfigView() {
     onSuccess: () => invalidate(),
   });
 
+  const updateTaskMut = useMutation({
+    mutationFn: async (vars: { id: string; title: string }) => {
+      const r = await updateTaskAction(vars);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onMutate: (vars) => {
+      void queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
+      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
+        queryKeys.dashboard,
+      );
+
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) => {
+        if (!current) return current;
+        const nextTitle = vars.title.trim();
+        if (!nextTitle) return current;
+
+        return {
+          ...current,
+          children: current.children.map((section) => ({
+            ...section,
+            tasks: section.tasks.map((task) =>
+              task.id === vars.id ? { ...task, title: nextTitle } : task,
+            ),
+          })),
+        };
+      });
+
+      return { previousDashboard };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousDashboard) {
+        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
+      }
+    },
+    onSettled: () => invalidate(),
+  });
+
   const reorderMut = useMutation({
-    mutationFn: async (vars: { childId: string; orderedIds: string[] }) => {
+    mutationFn: async (vars: {
+      childId: string;
+      routine: Routine;
+      orderedIds: string[];
+    }) => {
       const r = await reorderTasksAction(vars);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: () => invalidate(),
+    onMutate: (vars) => {
+      void queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
+      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
+        queryKeys.dashboard,
+      );
+
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          children: current.children.map((section) => {
+            if (section.child.id !== vars.childId) return section;
+
+            const orderLookup = new Map(
+              vars.orderedIds.map((id, index) => [id, index] as const),
+            );
+
+            const tasks = [...section.tasks].sort((a, b) => {
+              if (a.routine !== b.routine) {
+                return a.routine === "morning" ? -1 : 1;
+              }
+
+              if (a.routine !== vars.routine) {
+                if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+                return a.title.localeCompare(b.title);
+              }
+
+              const aIndex = orderLookup.get(a.id);
+              const bIndex = orderLookup.get(b.id);
+
+              if (aIndex !== undefined && bIndex !== undefined) {
+                return aIndex - bIndex;
+              }
+              if (aIndex !== undefined) return -1;
+              if (bIndex !== undefined) return 1;
+
+              if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+              return a.title.localeCompare(b.title);
+            });
+
+            return { ...section, tasks };
+          }),
+        };
+      });
+
+      return { previousDashboard };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousDashboard) {
+        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
+      }
+    },
+    onSettled: () => invalidate(),
   });
 
   const data = dashboardQuery.data;
+
+  const reorderChildrenMut = useMutation({
+    mutationFn: async (vars: { orderedIds: string[] }) => {
+      const r = await reorderChildrenAction(vars);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
+      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
+        queryKeys.dashboard,
+      );
+
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) => {
+        if (!current) return current;
+
+        const byId = new Map(current.children.map((section) => [section.child.id, section]));
+        const reorderedChildren = vars.orderedIds
+          .map((id) => byId.get(id))
+          .filter((section): section is ChildSectionDTO => Boolean(section));
+
+        if (reorderedChildren.length === 0) return current;
+
+        return {
+          ...current,
+          children: reorderedChildren,
+        };
+      });
+
+      return { previousDashboard };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousDashboard) {
+        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
+      }
+    },
+    onSettled: () => invalidate(),
+  });
+
+  const childSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  );
+
+  function onChildrenDragEnd(event: DragEndEvent) {
+    if (reorderChildrenMut.isPending) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!data) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const oldIndex = data.children.findIndex((s) => s.child.id === activeId);
+    const newIndex = data.children.findIndex((s) => s.child.id === overId);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+    const orderedIds = arrayMove(data.children, oldIndex, newIndex).map(
+      (section) => section.child.id,
+    );
+    reorderChildrenMut.mutate({ orderedIds });
+  }
 
   const tabButtons: { id: RoutineTab; label: string }[] = [
     { id: "auto", label: "Now" },
@@ -181,7 +462,10 @@ export function RoutineConfigView() {
         open={addChildOpen}
         onOpenChange={(open) => {
           setAddChildOpen(open);
-          if (!open) setNewChildName("");
+          if (!open) {
+            setNewChildName("");
+            setNewChildEmoji("");
+          }
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -225,7 +509,8 @@ export function RoutineConfigView() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   const n = newChildName.trim();
-                  if (n) addChildMut.mutate(n);
+                  const emoji = newChildEmoji.trim();
+                  if (n) addChildMut.mutate({ name: n, emoji: emoji || undefined });
                 }}
               >
                 <input
@@ -234,6 +519,13 @@ export function RoutineConfigView() {
                   placeholder="Name"
                   className="h-auto w-full min-w-0 rounded-xl border border-input bg-background px-2.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Choose emoji</Label>
+                  <EmojiOptionPicker
+                    selected={newChildEmoji}
+                    onSelect={setNewChildEmoji}
+                  />
+                </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   <Dialog.Close
                     type="button"
@@ -261,23 +553,112 @@ export function RoutineConfigView() {
         </p>
       ) : null}
 
-      {data.children.map((section) => (
-        <ConfigChildSection
-          key={section.child.id}
-          section={section}
-          profile={data.profile}
-          tab={tab}
-          toggleMut={toggleMut}
-          addTaskMut={addTaskMut}
-          delChildMut={delChildMut}
-          delTaskMut={delTaskMut}
-          reorderMut={reorderMut}
-          taskDrafts={taskDrafts}
-          setTaskDrafts={setTaskDrafts}
-          routineDrafts={routineDrafts}
-          setRoutineDrafts={setRoutineDrafts}
-        />
-      ))}
+      <DndContext
+        sensors={childSensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onChildrenDragEnd}
+      >
+        <SortableContext
+          items={data.children.map((section) => section.child.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-8">
+            {data.children.map((section) => (
+              <SortableConfigChildSection
+                key={section.child.id}
+                section={section}
+                profile={data.profile}
+                tab={tab}
+                addTaskMut={addTaskMut}
+                delChildMut={delChildMut}
+                updateChildMut={updateChildMut}
+                delTaskMut={delTaskMut}
+                updateTaskMut={updateTaskMut}
+                reorderMut={reorderMut}
+                taskDrafts={taskDrafts}
+                setTaskDrafts={setTaskDrafts}
+                routineDrafts={routineDrafts}
+                setRoutineDrafts={setRoutineDrafts}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+type ConfigChildSectionProps = {
+  section: ChildSectionDTO;
+  profile: ProfileDTO;
+  tab: RoutineTab;
+  addTaskMut: {
+    isPending: boolean;
+    mutate: (v: { childId: string; title: string; routine: Routine }) => void;
+  };
+  delChildMut: { mutate: (id: string) => void };
+  updateChildMut: {
+    isPending: boolean;
+    mutate: (v: { id: string; emoji: string | null }) => void;
+  };
+  delTaskMut: { mutate: (id: string) => void };
+  updateTaskMut: {
+    isPending: boolean;
+    mutate: (v: { id: string; title: string }) => void;
+  };
+  reorderMut: {
+    isPending: boolean;
+    mutate: (v: {
+      childId: string;
+      routine: Routine;
+      orderedIds: string[];
+    }) => void;
+  };
+  taskDrafts: Record<string, string>;
+  setTaskDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  routineDrafts: Record<string, "morning" | "evening">;
+  setRoutineDrafts: React.Dispatch<
+    React.SetStateAction<Record<string, "morning" | "evening">>
+  >;
+  childDragHandle?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+};
+
+function SortableConfigChildSection({
+  ...props
+}: ConfigChildSectionProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: props.section.child.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const childDragHandle: React.ButtonHTMLAttributes<HTMLButtonElement> = {
+    type: "button",
+    "aria-label": "Drag to reorder child",
+    title: "Drag to reorder child",
+    ...attributes,
+    ...listeners,
+    className:
+      "touch-none cursor-grab rounded-xl border border-border px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing",
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "relative z-10 opacity-90")}
+    >
+      <ConfigChildSection {...props} childDragHandle={childDragHandle} />
     </div>
   );
 }
@@ -286,40 +667,18 @@ function ConfigChildSection({
   section,
   profile,
   tab,
-  toggleMut,
   addTaskMut,
   delChildMut,
+  updateChildMut,
   delTaskMut,
+  updateTaskMut,
   reorderMut,
   taskDrafts,
   setTaskDrafts,
   routineDrafts,
   setRoutineDrafts,
-}: {
-  section: ChildSectionDTO;
-  profile: ProfileDTO;
-  tab: RoutineTab;
-  toggleMut: {
-    isPending: boolean;
-    mutate: (v: { childId: string; taskId: string }) => void;
-  };
-  addTaskMut: {
-    isPending: boolean;
-    mutate: (v: { childId: string; title: string; routine: Routine }) => void;
-  };
-  delChildMut: { mutate: (id: string) => void };
-  delTaskMut: { mutate: (id: string) => void };
-  reorderMut: {
-    isPending: boolean;
-    mutate: (v: { childId: string; orderedIds: string[] }) => void;
-  };
-  taskDrafts: Record<string, string>;
-  setTaskDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  routineDrafts: Record<string, "morning" | "evening">;
-  setRoutineDrafts: React.Dispatch<
-    React.SetStateAction<Record<string, "morning" | "evening">>
-  >;
-}) {
+  childDragHandle,
+}: ConfigChildSectionProps) {
   const routines = useMemo(() => {
     return resolveRoutineFilter(tab, profile, section.child);
   }, [tab, profile, section.child]);
@@ -348,6 +707,7 @@ function ConfigChildSection({
   );
 
   function onTasksDragEnd(event: DragEndEvent) {
+    if (reorderMut.isPending) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
@@ -365,6 +725,7 @@ function ConfigChildSection({
     const orderedIds = arrayMove(list, oldIndex, newIndex).map((t) => t.id);
     reorderMut.mutate({
       childId: section.child.id,
+      routine: activeTask.routine,
       orderedIds,
     });
   }
@@ -372,12 +733,42 @@ function ConfigChildSection({
   const draftKey = section.child.id;
   const title = taskDrafts[draftKey] ?? "";
   const routine = routineDrafts[draftKey] ?? "morning";
-  const done = new Set(section.completedTaskIds);
+  const [emojiDraft, setEmojiDraft] = useState(() => section.child.emoji ?? "");
+  const isEmojiSaving =
+    updateChildMut.isPending && (section.child.emoji ?? "") !== emojiDraft;
+
+  function handleEmojiSelect(nextEmoji: string) {
+    const normalized = nextEmoji.trim();
+    if ((section.child.emoji ?? "") === normalized) {
+      setEmojiDraft(normalized);
+      return;
+    }
+
+    setEmojiDraft(normalized);
+    updateChildMut.mutate({
+      id: section.child.id,
+      emoji: normalized || null,
+    });
+  }
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h2 className="text-xl font-semibold text-foreground">{section.child.name}</h2>
+        <div className="flex items-center gap-2">
+          {childDragHandle ? (
+            <button {...childDragHandle}>
+              <GripVertical className="size-5 shrink-0" aria-hidden />
+            </button>
+          ) : null}
+          <h2 className="text-xl font-semibold text-foreground">
+            {section.child.emoji ? (
+              <span className="mr-1.5 inline-block text-3xl leading-none align-middle" aria-hidden>
+                {section.child.emoji}
+              </span>
+            ) : null}
+            {section.child.name}
+          </h2>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -392,6 +783,18 @@ function ConfigChildSection({
         >
           Remove child
         </button>
+      </div>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="flex min-w-[180px] flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">Emoji</Label>
+          <EmojiOptionPicker
+            selected={emojiDraft}
+            onSelect={handleEmojiSelect}
+          />
+        </div>
+        {isEmojiSaving ? (
+          <p className="text-xs text-muted-foreground">Saving emoji…</p>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -422,11 +825,8 @@ function ConfigChildSection({
                         <SortableRoutineTaskRow
                           key={task.id}
                           task={task}
-                          complete={done.has(task.id)}
-                          childId={section.child.id}
-                          toggleMut={toggleMut}
                           delTaskMut={delTaskMut}
-                          reorderDisabled={reorderMut.isPending}
+                          updateTaskMut={updateTaskMut}
                         />
                       ))}
                     </div>
@@ -449,11 +849,8 @@ function ConfigChildSection({
                         <SortableRoutineTaskRow
                           key={task.id}
                           task={task}
-                          complete={done.has(task.id)}
-                          childId={section.child.id}
-                          toggleMut={toggleMut}
                           delTaskMut={delTaskMut}
-                          reorderDisabled={reorderMut.isPending}
+                          updateTaskMut={updateTaskMut}
                         />
                       ))}
                     </div>
@@ -522,24 +919,105 @@ function ConfigChildSection({
   );
 }
 
+function EmojiOptionPicker({
+  selected,
+  onSelect,
+}: {
+  selected: string;
+  onSelect: (emoji: string) => void;
+}) {
+  const [showMore, setShowMore] = useState(false);
+  const selectedInMore = MORE_CHILD_EMOJI_OPTIONS.includes(
+    selected as (typeof MORE_CHILD_EMOJI_OPTIONS)[number],
+  );
+  const showMoreOptions = showMore;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onSelect("")}
+        className={cn(
+          "rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors",
+          selected
+            ? "border-border bg-background text-muted-foreground hover:bg-muted"
+            : "border-primary bg-primary/10 text-primary",
+        )}
+        aria-label="No emoji"
+      >
+        None
+      </button>
+      {CHILD_EMOJI_OPTIONS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => onSelect(emoji)}
+          className={cn(
+            "h-9 w-9 rounded-full border text-xl transition-colors",
+            selected === emoji
+              ? "border-primary bg-primary/10"
+              : "border-border bg-background hover:bg-muted",
+          )}
+          aria-label={`Use ${emoji} emoji`}
+        >
+          {emoji}
+        </button>
+      ))}
+      {showMoreOptions
+        ? MORE_CHILD_EMOJI_OPTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => onSelect(emoji)}
+              className={cn(
+                "h-9 w-9 rounded-full border text-xl transition-colors",
+                selected === emoji
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-background hover:bg-muted",
+              )}
+              aria-label={`Use ${emoji} emoji`}
+            >
+              {emoji}
+            </button>
+          ))
+        : null}
+      {!showMoreOptions && selectedInMore ? (
+        <button
+          type="button"
+          onClick={() => onSelect(selected)}
+          className="h-9 w-9 rounded-full border border-primary bg-primary/10 text-xl transition-colors"
+          aria-label={`Use ${selected} emoji`}
+        >
+          {selected}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setShowMore((value) => !value)}
+        className="rounded-full border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+        aria-label={showMoreOptions ? "Show fewer emoji options" : "Show more emoji options"}
+      >
+        {showMoreOptions ? "Less" : "More"}
+      </button>
+    </div>
+  );
+}
+
 function SortableRoutineTaskRow({
   task,
-  complete,
-  childId,
-  toggleMut,
   delTaskMut,
-  reorderDisabled,
+  updateTaskMut,
 }: {
   task: TaskDTO;
-  complete: boolean;
-  childId: string;
-  toggleMut: {
-    isPending: boolean;
-    mutate: (v: { childId: string; taskId: string }) => void;
-  };
   delTaskMut: { mutate: (id: string) => void };
-  reorderDisabled: boolean;
+  updateTaskMut: {
+    isPending: boolean;
+    mutate: (v: { id: string; title: string }) => void;
+  };
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(task.title);
+
   const {
     attributes,
     listeners,
@@ -547,12 +1025,23 @@ function SortableRoutineTaskRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: reorderDisabled });
+  } = useSortable({ id: task.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  function saveTitle() {
+    const nextTitle = titleDraft.trim();
+    if (!nextTitle || nextTitle === task.title) {
+      setTitleDraft(task.title);
+      setIsEditing(false);
+      return;
+    }
+    updateTaskMut.mutate({ id: task.id, title: nextTitle });
+    setIsEditing(false);
+  }
 
   return (
     <div
@@ -567,38 +1056,53 @@ function SortableRoutineTaskRow({
         type="button"
         aria-label="Drag to reorder"
         title="Drag to reorder"
-        disabled={reorderDisabled}
-        className="touch-none cursor-grab rounded-xl border border-border px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+        className="touch-none cursor-grab rounded-xl border border-border px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="size-5 shrink-0" aria-hidden />
       </button>
-      <button
-        type="button"
-        disabled={toggleMut.isPending}
-        onClick={() =>
-          toggleMut.mutate({
-            childId,
-            taskId: task.id,
-          })
-        }
-        className={`min-h-[52px] flex-1 rounded-2xl border-2 px-4 py-3 text-left text-base font-medium transition-colors ${
-          complete
-            ? "border-primary bg-primary/15 text-foreground"
-            : "border-input bg-background text-foreground"
-        }`}
+      <div
+        className="min-h-[52px] flex-1 rounded-2xl border-2 border-input bg-background px-4 py-3 text-left text-base font-medium text-foreground transition-colors"
       >
-        <span className="mr-2 text-xs font-normal uppercase text-muted-foreground">
-          {task.routine}
-        </span>
-        {task.title}
-        {complete ? (
-          <span className="ml-2 text-primary">
-            ✓
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-xs font-normal uppercase text-muted-foreground">
+            {task.routine}
           </span>
-        ) : null}
-      </button>
+          {isEditing ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  saveTitle();
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setTitleDraft(task.title);
+                  setIsEditing(false);
+                }
+              }}
+              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1 text-base font-medium text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setTitleDraft(task.title);
+                setIsEditing(true);
+              }}
+              className="min-w-0 flex-1 rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {task.title}
+            </button>
+          )}
+        </div>
+      </div>
       <button
         type="button"
         title="Delete task"

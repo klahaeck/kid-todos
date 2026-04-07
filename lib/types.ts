@@ -1,4 +1,5 @@
 import type { ColorThemeId } from "@/lib/color-themes";
+import type { DashboardFontId } from "@/lib/dashboard-font-options";
 
 export type Routine = "morning" | "evening";
 
@@ -7,6 +8,8 @@ export type ProfileDoc = {
   clerkId: string;
   /** UI color theme id; omit on legacy docs → treated as classic */
   colorTheme?: string;
+  /** Dashboard font id; omit on legacy docs → treated as geist */
+  dashboardFont?: string;
   timezone: string;
   morningStart: string;
   morningEnd: string;
@@ -20,6 +23,7 @@ export type ChildDoc = {
   _id: import("mongodb").ObjectId;
   userId: string;
   name: string;
+  emoji?: string | null;
   sortOrder: number;
   morningStart: string | null;
   morningEnd: string | null;
@@ -55,6 +59,7 @@ export type ProfileDTO = {
   id: string;
   clerkId: string;
   colorTheme: ColorThemeId;
+  dashboardFont: DashboardFontId;
   timezone: string;
   morningStart: string;
   morningEnd: string;
@@ -66,6 +71,7 @@ export type ChildDTO = {
   id: string;
   userId: string;
   name: string;
+  emoji: string | null;
   sortOrder: number;
   morningStart: string | null;
   morningEnd: string | null;

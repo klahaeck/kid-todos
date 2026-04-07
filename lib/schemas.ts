@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COLOR_THEME_IDS } from "@/lib/color-themes";
+import { DASHBOARD_FONT_IDS } from "@/lib/dashboard-font-options";
 
 export const routineSchema = z.enum(["morning", "evening"]);
 
@@ -9,11 +10,13 @@ export const timeHmSchema = z
 
 export const createChildSchema = z.object({
   name: z.string().trim().min(1).max(120),
+  emoji: z.string().trim().max(16).optional(),
 });
 
 export const updateChildSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(120).optional(),
+  emoji: z.string().trim().max(16).nullable().optional(),
   morningStart: timeHmSchema.nullable().optional(),
   morningEnd: timeHmSchema.nullable().optional(),
   eveningStart: timeHmSchema.nullable().optional(),
@@ -44,6 +47,7 @@ export const reorderTasksSchema = z.object({
 
 export const updateProfileSchema = z.object({
   colorTheme: z.enum(COLOR_THEME_IDS).optional(),
+  dashboardFont: z.enum(DASHBOARD_FONT_IDS).optional(),
   timezone: z.string().trim().min(1).max(64).optional(),
   morningStart: timeHmSchema.optional(),
   morningEnd: timeHmSchema.optional(),

@@ -15,6 +15,11 @@ import {
   COLOR_THEME_OPTIONS,
   type ColorThemeId,
 } from "@/lib/color-themes";
+import {
+  DASHBOARD_FONT_OPTIONS,
+  type DashboardFontId,
+} from "@/lib/dashboard-font-options";
+import { getDashboardFontClassName } from "@/lib/dashboard-fonts";
 import { getLocalTimeZone } from "@/lib/timezone";
 import { Label } from "@/components/ui/label";
 import {
@@ -105,6 +110,7 @@ function TimeHmField({
 function profileSettingsKey(p: ProfileDTO) {
   return [
     p.colorTheme,
+    p.dashboardFont,
     p.timezone,
     p.morningStart,
     p.morningEnd,
@@ -120,6 +126,15 @@ function SettingsFormFields({
   profile: ProfileDTO;
   saveMut: UseMutationResult<unknown, Error, FormData, unknown>;
 }) {
+  const initialTimezone = profile.timezone?.trim()
+    ? profile.timezone.trim()
+    : getLocalTimeZone();
+  const initialMorningStart = profile.morningStart ?? "";
+  const initialMorningEnd = profile.morningEnd ?? "";
+  const initialEveningStart = profile.eveningStart ?? "";
+  const initialEveningEnd = profile.eveningEnd ?? "";
+  const initialColorTheme = profile.colorTheme;
+  const initialDashboardFont = profile.dashboardFont;
 
   const timezoneOptions = useMemo(() => {
     const stored = profile.timezone?.trim() ?? "";
@@ -131,7 +146,7 @@ function SettingsFormFields({
   }, [profile.timezone]);
 
   const [timezone, setTimezone] = useState(() =>
-    profile.timezone?.trim() ? profile.timezone.trim() : getLocalTimeZone(),
+    initialTimezone,
   );
 
   const timeOptions = useMemo(
@@ -150,19 +165,39 @@ function SettingsFormFields({
     ],
   );
 
-  const [morningStart, setMorningStart] = useState(profile.morningStart ?? "");
-  const [morningEnd, setMorningEnd] = useState(profile.morningEnd ?? "");
-  const [eveningStart, setEveningStart] = useState(
-    profile.eveningStart ?? "",
-  );
-  const [eveningEnd, setEveningEnd] = useState(profile.eveningEnd ?? "");
+  const [morningStart, setMorningStart] = useState(initialMorningStart);
+  const [morningEnd, setMorningEnd] = useState(initialMorningEnd);
+  const [eveningStart, setEveningStart] = useState(initialEveningStart);
+  const [eveningEnd, setEveningEnd] = useState(initialEveningEnd);
   const [colorTheme, setColorTheme] = useState<ColorThemeId>(
-    profile.colorTheme,
+    initialColorTheme,
+  );
+  const [dashboardFont, setDashboardFont] = useState<DashboardFontId>(
+    initialDashboardFont,
+  );
+  const dashboardFontPreviewClassName = useMemo(
+    () => getDashboardFontClassName(dashboardFont),
+    [dashboardFont],
   );
 
   useEffect(() => {
     applyColorThemeToDocument(colorTheme);
   }, [colorTheme]);
+
+  const hasUnsavedChanges =
+    timezone !== initialTimezone ||
+    morningStart !== initialMorningStart ||
+    morningEnd !== initialMorningEnd ||
+    eveningStart !== initialEveningStart ||
+    eveningEnd !== initialEveningEnd ||
+    colorTheme !== initialColorTheme ||
+    dashboardFont !== initialDashboardFont;
+  const isSaveDisabled = saveMut.isPending || !hasUnsavedChanges;
+  const saveButtonLabel = saveMut.isSuccess && !hasUnsavedChanges
+      ? "Saved"
+      : saveMut.isError
+        ? "Retry save"
+        : "Save changes";
 
   return (
     <div className="mx-auto max-w-lg p-6">
@@ -207,6 +242,46 @@ function SettingsFormFields({
             Ocean, Sunshine, and Berry add cheerful color; Classic stays simple
             and neutral.
           </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label
+            htmlFor="dashboard-font-select"
+            className="text-muted-foreground"
+          >
+            Dashboard font
+          </Label>
+          <input type="hidden" name="dashboardFont" value={dashboardFont} />
+          <Select
+            value={dashboardFont}
+            onValueChange={(v) =>
+              setDashboardFont((v ?? "geist") as DashboardFontId)
+            }
+          >
+            <SelectTrigger
+              id="dashboard-font-select"
+              className="h-auto w-full min-w-0 rounded-xl py-2"
+            >
+              <SelectValue placeholder="Choose a dashboard font" />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {DASHBOARD_FONT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.id} value={opt.id} title={opt.description}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            This only changes text style on the kids dashboard page.
+          </p>
+          <div className="rounded-xl border border-border bg-card p-3">
+            <p className="mb-1 text-xs text-muted-foreground">Preview</p>
+            <p
+              className={`text-lg text-card-foreground ${dashboardFontPreviewClassName}`}
+            >
+              Tap when you&apos;re done! Great job!
+            </p>
+          </div>
         </div>
         <div className="flex flex-col gap-2">
           <Label
@@ -277,15 +352,12 @@ function SettingsFormFields({
               : "Save failed"}
           </p>
         ) : null}
-        {saveMut.isSuccess ? (
-          <p className="text-sm text-emerald-600">Saved.</p>
-        ) : null}
         <button
           type="submit"
-          disabled={saveMut.isPending}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          disabled={isSaveDisabled}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Save
+          {saveButtonLabel}
         </button>
       </form>
     </div>
@@ -307,6 +379,7 @@ export function SettingsForm() {
   const saveMut = useMutation({
     mutationFn: async (form: FormData) => {
       const colorThemeRaw = String(form.get("colorTheme") ?? "").trim();
+      const dashboardFontRaw = String(form.get("dashboardFont") ?? "").trim();
       const timezone = String(form.get("timezone") ?? "").trim();
       const morningStart = String(form.get("morningStart") ?? "").trim();
       const morningEnd = String(form.get("morningEnd") ?? "").trim();
@@ -314,6 +387,7 @@ export function SettingsForm() {
       const eveningEnd = String(form.get("eveningEnd") ?? "").trim();
       const r = await updateProfile({
         colorTheme: (colorThemeRaw || "classic") as ColorThemeId,
+        dashboardFont: (dashboardFontRaw || "geist") as DashboardFontId,
         timezone: timezone || undefined,
         morningStart: morningStart || undefined,
         morningEnd: morningEnd || undefined,

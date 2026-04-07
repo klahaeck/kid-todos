@@ -37,7 +37,7 @@ export async function createChildAction(
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
     }
-    const row = await createChild(userId, parsed.data.name);
+    const row = await createChild(userId, parsed.data.name, parsed.data.emoji);
     return { ok: true, data: childToDTO(row) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kid routines",
-  description: "Morning and evening todo lists for kids",
+  title: "Starry Steps",
+  description: "Simple, cheerful daily routines for kids",
 };
 
 export default function RootLayout({

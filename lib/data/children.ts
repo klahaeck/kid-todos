@@ -11,6 +11,7 @@ export function childToDTO(c: WithId<ChildDoc>): ChildDTO {
     id: c._id.toHexString(),
     userId: c.userId,
     name: c.name,
+    emoji: c.emoji ?? null,
     sortOrder: c.sortOrder,
     morningStart: c.morningStart,
     morningEnd: c.morningEnd,
@@ -30,15 +31,18 @@ export async function listChildrenForUser(
 export async function createChild(
   userId: string,
   name: string,
+  emoji?: string,
 ): Promise<WithId<ChildDoc>> {
   await ensureIndexes();
   const c = await col();
   const last = await c.find({ userId }).sort({ sortOrder: -1 }).limit(1).next();
   const sortOrder = (last?.sortOrder ?? -1) + 1;
   const now = new Date();
+  const normalizedEmoji = emoji?.trim() || null;
   const doc: Omit<ChildDoc, "_id"> = {
     userId,
     name,
+    emoji: normalizedEmoji,
     sortOrder,
     morningStart: null,
     morningEnd: null,
@@ -67,6 +71,7 @@ export async function updateChildForUser(
   childId: ObjectId,
   patch: Partial<{
     name: string;
+    emoji: string | null;
     morningStart: string | null;
     morningEnd: string | null;
     eveningStart: string | null;

@@ -1,21 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import {
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { getDashboardData } from "@/app/actions/dashboard";
 import { toggleTaskCompletionAction } from "@/app/actions/completions";
 import { queryKeys } from "@/lib/query-keys";
-import type { ChildSectionDTO, ProfileDTO, Routine } from "@/lib/types";
+import type {
+  ChildSectionDTO,
+  DashboardDTO,
+  ProfileDTO,
+  Routine,
+} from "@/lib/types";
 import {
-  kidRoutineHeading,
+  currentMinutesInTimezone,
+  resolveRoutineFilter,
   routineWindowsSummary,
   routinesVisibleForKidNow,
 } from "@/lib/routine-filter";
 import { useConfetti } from "@/components/confetti-provider";
 
-export function DashboardView() {
+export function DashboardView({ fontClassName }: { fontClassName: string }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const queryClient = useQueryClient();
+  const toggleMutationKey = ["toggle-task-completion"];
   const dashboardQuery = useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
@@ -28,14 +49,85 @@ export function DashboardView() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 
+  const updateOptimisticCompletion = (
+    current: DashboardDTO | undefined,
+    vars: { childId: string; taskId: string },
+    forceCompleted?: boolean,
+  ): DashboardDTO | undefined => {
+    if (!current) return current;
+
+    return {
+      ...current,
+      children: current.children.map((section) => {
+        if (section.child.id !== vars.childId) return section;
+
+        const currentlyDone = section.completedTaskIds.includes(vars.taskId);
+        const nextDone = forceCompleted ?? !currentlyDone;
+        const completedTaskIds = nextDone
+          ? section.completedTaskIds.includes(vars.taskId)
+            ? section.completedTaskIds
+            : [...section.completedTaskIds, vars.taskId]
+          : section.completedTaskIds.filter((id) => id !== vars.taskId);
+
+        return {
+          ...section,
+          completedTaskIds,
+        };
+      }),
+    };
+  };
+
   const toggleMut = useMutation({
+    mutationKey: toggleMutationKey,
     mutationFn: async (vars: { childId: string; taskId: string }) => {
       const r = await toggleTaskCompletionAction(vars.childId, vars.taskId);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: () => invalidate(),
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
+      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
+        queryKeys.dashboard,
+      );
+
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) =>
+        updateOptimisticCompletion(current, vars),
+      );
+
+      return { previousDashboard };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousDashboard) {
+        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
+      }
+    },
+    onSuccess: (result, vars) => {
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) =>
+        updateOptimisticCompletion(current, vars, result.completed),
+      );
+    },
+    onSettled: () => invalidate(),
   });
+
+  const pendingToggles = useMutationState<
+    { childId: string; taskId: string } | undefined
+  >({
+    filters: { mutationKey: toggleMutationKey, status: "pending" },
+    select: (mutation) =>
+      mutation.state.variables as { childId: string; taskId: string } | undefined,
+  });
+
+  const pendingTaskKeys = useMemo(
+    () =>
+      new Set(
+        pendingToggles
+          .filter((vars): vars is { childId: string; taskId: string } =>
+            Boolean(vars),
+          )
+          .map(({ childId, taskId }) => `${childId}:${taskId}`),
+      ),
+    [pendingToggles],
+  );
 
   const data = dashboardQuery.data;
 
@@ -59,11 +151,27 @@ export function DashboardView() {
 
   const hasChildren = data.children.length > 0;
   const hasAnyTask = data.children.some((s) => s.tasks.length > 0);
-  const pageHeading = kidRoutineHeading(data.profile, undefined);
-  const pageWindowsLine = routineWindowsSummary(data.profile, undefined);
+  const timezone = data.profile.timezone?.trim() || "UTC";
+  const nowDate = new Date(nowMs);
+  const timeLabel = new Intl.DateTimeFormat(undefined, {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(nowDate);
+  const resolved = resolveRoutineFilter("auto", data.profile, undefined);
+  const state =
+    resolved?.length === 1
+      ? resolved[0]
+      : currentMinutesInTimezone(timezone) < 12 * 60
+        ? "morning"
+        : "evening";
+  const stateLabel = state === "morning" ? "Morning" : "Evening";
+  const dashboardHeading = `${timeLabel} · ${stateLabel}`;
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-5xl flex-col gap-8 px-4 py-8 pb-16">
+    <div
+      className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
+    >
       {/* <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
           Tap when you&apos;re done
@@ -107,8 +215,7 @@ export function DashboardView() {
 
       {hasChildren && hasAnyTask ? (
         <header className="text-center">
-          <h2 className="text-xl font-bold text-foreground">{pageHeading}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{pageWindowsLine}</p>
+          <h2 className="text-xl font-bold text-foreground">{dashboardHeading}</h2>
         </header>
       ) : null}
 
@@ -117,7 +224,8 @@ export function DashboardView() {
           key={section.child.id}
           section={section}
           profile={data.profile}
-          toggleMut={toggleMut}
+          pendingTaskKeys={pendingTaskKeys}
+          toggleMut={{ mutate: toggleMut.mutate }}
         />
       ))}
 
@@ -137,12 +245,13 @@ export function DashboardView() {
 function KidRoutineBlock({
   section,
   profile,
+  pendingTaskKeys,
   toggleMut,
 }: {
   section: ChildSectionDTO;
   profile: ProfileDTO;
+  pendingTaskKeys: ReadonlySet<string>;
   toggleMut: {
-    isPending: boolean;
     mutate: (v: { childId: string; taskId: string }) => void;
   };
 }) {
@@ -164,7 +273,14 @@ function KidRoutineBlock({
   return (
     <section className="flex w-full flex-col gap-4 rounded-3xl border-2 border-border bg-card/90 p-5 text-card-foreground shadow-sm">
       <div className="text-center sm:text-left">
-        <h2 className="text-2xl font-bold text-foreground">{section.child.name}</h2>
+        <h2 className="text-2xl font-bold text-foreground">
+          {section.child.emoji ? (
+            <span className="mr-1.5 inline-block text-4xl leading-none align-middle" aria-hidden>
+              {section.child.emoji}
+            </span>
+          ) : null}
+          {section.child.name}
+        </h2>
       </div>
 
       {tasks.length === 0 ? (
@@ -193,7 +309,7 @@ function KidRoutineBlock({
               <TaskTapButton
                 task={task}
                 complete={done.has(task.id)}
-                disabled={toggleMut.isPending}
+                disabled={pendingTaskKeys.has(`${section.child.id}:${task.id}`)}
                 onTap={() =>
                   toggleMut.mutate({
                     childId: section.child.id,
@@ -232,7 +348,7 @@ function TaskTapButton({
           addConfetti();
         }
       }}
-      className={`flex h-full min-h-17 w-full items-center justify-center rounded-3xl border-4 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.98] sm:min-h-19 sm:px-5 sm:text-xl ${
+      className={`flex h-full min-h-17 w-full items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
         complete
           ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
           : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg) hover:brightness-[0.97]"
@@ -240,11 +356,11 @@ function TaskTapButton({
     >
       <span className="line-clamp-3 wrap-break-word">
         {task.title}
-        {complete ? (
+        {/* {complete ? (
           <span className="ml-1 inline-block align-middle text-xl sm:text-2xl" aria-hidden>
             ✓
           </span>
-        ) : null}
+        ) : null} */}
       </span>
     </button>
   );

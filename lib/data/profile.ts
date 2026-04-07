@@ -1,10 +1,15 @@
 import type { Collection, Document, WithId } from "mongodb";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
 import { DEFAULT_COLOR_THEME, normalizeColorTheme } from "@/lib/color-themes";
+import {
+  DEFAULT_DASHBOARD_FONT,
+  normalizeDashboardFont,
+} from "@/lib/dashboard-font-options";
 import type { ProfileDoc, ProfileDTO } from "@/lib/types";
 
 const DEFAULTS = {
   colorTheme: DEFAULT_COLOR_THEME,
+  dashboardFont: DEFAULT_DASHBOARD_FONT,
   /** Empty until the user saves a zone from settings (UI defaults to device TZ). */
   timezone: "",
   morningStart: "06:00",
@@ -22,6 +27,7 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
     id: p._id.toHexString(),
     clerkId: p.clerkId,
     colorTheme: normalizeColorTheme(p.colorTheme),
+    dashboardFont: normalizeDashboardFont(p.dashboardFont),
     timezone: p.timezone,
     morningStart: p.morningStart,
     morningEnd: p.morningEnd,
@@ -41,6 +47,7 @@ export async function ensureProfileForClerkUser(
   const doc: Omit<ProfileDoc, "_id"> = {
     clerkId,
     colorTheme: DEFAULTS.colorTheme,
+    dashboardFont: DEFAULTS.dashboardFont,
     timezone: DEFAULTS.timezone,
     morningStart: DEFAULTS.morningStart,
     morningEnd: DEFAULTS.morningEnd,
@@ -67,6 +74,7 @@ export async function updateProfileForUser(
   clerkId: string,
   patch: Partial<{
     colorTheme: string;
+    dashboardFont: string;
     timezone: string;
     morningStart: string;
     morningEnd: string;
