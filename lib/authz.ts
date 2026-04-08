@@ -10,6 +10,12 @@ export function roleFromUser(user: ClerkUser | null): AppRole {
   return "user";
 }
 
+/** Billing / plan features are bypassed for these Clerk `publicMetadata.role` values. */
+export function roleGrantsAllFeatures(user: ClerkUser | null): boolean {
+  const r = user?.publicMetadata?.role;
+  return r === "admin" || r === "friend";
+}
+
 export async function requireUserId(): Promise<string> {
   const { userId } = await auth();
   if (!userId) {

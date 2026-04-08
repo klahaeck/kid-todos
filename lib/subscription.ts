@@ -1,4 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { roleGrantsAllFeatures } from "@/lib/authz";
 
 export const BILLING_PLANS = {
   monthly: process.env.CLERK_MONTHLY_PLAN_SLUG ?? "monthly",
@@ -22,6 +23,11 @@ function canAccess(has: AuthHas | undefined, access: PlanAccess): boolean {
   return has(access);
 }
 
+async function subscriptionBypassFromRole(): Promise<boolean> {
+  const user = await currentUser();
+  return roleGrantsAllFeatures(user);
+}
+
 export async function getSubscriptionAccess() {
   const { isAuthenticated, has } = await auth();
   if (!isAuthenticated) {
@@ -31,6 +37,16 @@ export async function getSubscriptionAccess() {
       hasMultipleChildrenFeature: false,
       hasAllRoutinesFeature: false,
       hasAllThemesFeature: false,
+    };
+  }
+
+  if (await subscriptionBypassFromRole()) {
+    return {
+      isAuthenticated: true,
+      isMonthlySubscriber: true,
+      hasMultipleChildrenFeature: true,
+      hasAllRoutinesFeature: true,
+      hasAllThemesFeature: true,
     };
   }
 
@@ -52,17 +68,20 @@ export async function getSubscriptionAccess() {
 export async function hasMultipleChildrenFeature() {
   const { userId, has } = await auth();
   if (!userId) return false;
+  if (await subscriptionBypassFromRole()) return true;
   return canAccess(has, { feature: BILLING_FEATURES.multipleChildren });
 }
 
 export async function hasAllRoutinesFeature() {
   const { userId, has } = await auth();
   if (!userId) return false;
+  if (await subscriptionBypassFromRole()) return true;
   return canAccess(has, { feature: BILLING_FEATURES.allRoutines });
 }
 
 export async function hasAllThemesFeature() {
   const { userId, has } = await auth();
   if (!userId) return false;
+  if (await subscriptionBypassFromRole()) return true;
   return canAccess(has, { feature: BILLING_FEATURES.allThemes });
 }
