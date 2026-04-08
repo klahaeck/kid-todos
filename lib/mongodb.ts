@@ -1,4 +1,4 @@
-import { MongoClient, type Db, type MongoClientOptions } from "mongodb";
+import { MongoClient, ServerApiVersion, type Db, type MongoClientOptions } from "mongodb";
 
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
@@ -6,7 +6,11 @@ declare global {
 
 /** Avoids TLS handshake failures (OpenSSL alert 80) when Node picks IPv6 first on hosts like Vercel. */
 const clientOptions: MongoClientOptions = {
-  autoSelectFamily: false,
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
 };
 
 function getMongoUri(): string {
