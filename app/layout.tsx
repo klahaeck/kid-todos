@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppHeader } from "@/components/app-header";
+import { AppFooter } from "@/components/app-footer";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -36,7 +37,8 @@ export default function RootLayout({
         <ClerkProvider>
           <Providers>
             <AppHeader />
-            <main className="flex-1">{children}</main>
+            <main className="relative flex-1">{children}</main>
+            <AppFooter />
           </Providers>
         </ClerkProvider>
         <Analytics />

@@ -17,9 +17,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
-import { GripVertical } from "lucide-react";
+import { Eye, EyeOff, GripVertical } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { formatTimeHmForLocaleInProfileZone } from "@/lib/format-time-hm";
+import {
+  DEFAULT_CHILD_EVENING_START,
+  DEFAULT_CHILD_MORNING_START,
+} from "@/lib/routine-filter";
+import { mergeHmOptions } from "@/lib/time-hm-options";
 import { getDashboardData } from "@/app/actions/dashboard";
 import {
   createChildAction,
@@ -171,10 +177,21 @@ const MORE_CHILD_EMOJI_OPTIONS = [
   "🤎",
 ] as const;
 
-export function RoutineConfigView() {
+type RoutineConfigViewProps = {
+  hasMultipleChildrenFeature?: boolean;
+  hasAllRoutinesFeature?: boolean;
+};
+
+export function RoutineConfigView({
+  hasMultipleChildrenFeature = false,
+  hasAllRoutinesFeature = false,
+}: RoutineConfigViewProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RoutineTab>("all");
-  const [addChildOpen, setAddChildOpen] = useState(false);
+  const [childDialog, setChildDialog] = useState<"none" | "add" | "upgrade">(
+    "none",
+  );
+  const [morningRoutinesTipOpen, setMorningRoutinesTipOpen] = useState(false);
   const [newChildName, setNewChildName] = useState("");
   const [newChildEmoji, setNewChildEmoji] = useState("");
   const [taskDrafts, setTaskDrafts] = useState<Record<string, string>>({});
@@ -203,7 +220,7 @@ export function RoutineConfigView() {
     onSuccess: () => {
       setNewChildName("");
       setNewChildEmoji("");
-      setAddChildOpen(false);
+      setChildDialog("none");
       invalidate();
     },
   });
@@ -218,7 +235,12 @@ export function RoutineConfigView() {
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: () => invalidate(),
+    onSuccess: (_data, variables) => {
+      invalidate();
+      if (!hasAllRoutinesFeature && variables.routine === "morning") {
+        setMorningRoutinesTipOpen(true);
+      }
+    },
   });
 
   const delChildMut = useMutation({
@@ -231,7 +253,20 @@ export function RoutineConfigView() {
   });
 
   const updateChildMut = useMutation({
-    mutationFn: async (vars: { id: string; emoji: string | null }) => {
+    mutationFn: async (vars: { id: string; emoji: string | null; hiddenOnDashboard?: boolean }) => {
+      const r = await updateChildAction(vars);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onSuccess: () => invalidate(),
+  });
+
+  const updateChildTimesMut = useMutation({
+    mutationFn: async (vars: {
+      id: string;
+      morningStart?: string | null;
+      eveningStart?: string | null;
+    }) => {
       const r = await updateChildAction(vars);
       if (!r.ok) throw new Error(r.error);
       return r.data;
@@ -406,11 +441,14 @@ export function RoutineConfigView() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
-    const oldIndex = data.children.findIndex((s) => s.child.id === activeId);
-    const newIndex = data.children.findIndex((s) => s.child.id === overId);
+    const visibleChildren = hasMultipleChildrenFeature
+      ? data.children
+      : data.children.slice(0, 1);
+    const oldIndex = visibleChildren.findIndex((s) => s.child.id === activeId);
+    const newIndex = visibleChildren.findIndex((s) => s.child.id === overId);
     if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
 
-    const orderedIds = arrayMove(data.children, oldIndex, newIndex).map(
+    const orderedIds = arrayMove(visibleChildren, oldIndex, newIndex).map(
       (section) => section.child.id,
     );
     reorderChildrenMut.mutate({ orderedIds });
@@ -437,6 +475,14 @@ export function RoutineConfigView() {
     );
   }
 
+  const canAddAnotherChild =
+    data.children.length === 0 || hasMultipleChildrenFeature;
+  const visibleChildren = hasMultipleChildrenFeature
+    ? data.children
+    : data.children.slice(0, 1);
+  const hasHiddenChildren =
+    !hasMultipleChildrenFeature && data.children.length > visibleChildren.length;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
       <div>
@@ -451,97 +497,192 @@ export function RoutineConfigView() {
           </Link>{" "}
           to tap tasks when they finish them.
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {!hasAllRoutinesFeature ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Morning tasks you add here are saved, but on the free plan they do
+            not appear on the kids dashboard until your subscription includes the{" "}
+            <span className="font-medium text-foreground">all_routines</span>{" "}
+            feature. Evening tasks show as usual.
+          </p>
+        ) : null}
+        {/* <p className="mt-1 text-sm text-muted-foreground">
           Preview uses calendar day{" "}
           <span className="font-medium text-foreground">{data.today}</span>{" "}
           ({data.profile.timezone?.trim() || "UTC"}).
-        </p>
+        </p> */}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+          {tabButtons.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => setTab(b.id)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                tab === b.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (canAddAnotherChild) {
+              setChildDialog("add");
+            } else {
+              setChildDialog("upgrade");
+            }
+          }}
+          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Add child
+        </button>
+      </div>
+      {hasHiddenChildren ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Only one child is shown on your current plan. Tap Add child to learn how
+          to add more.
+        </p>
+      ) : null}
+
       <Dialog.Root
-        open={addChildOpen}
+        open={childDialog !== "none"}
         onOpenChange={(open) => {
-          setAddChildOpen(open);
           if (!open) {
+            setChildDialog("none");
             setNewChildName("");
             setNewChildEmoji("");
           }
         }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-            {tabButtons.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setTab(b.id)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  tab === b.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                }`}
-              >
-                {b.label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setAddChildOpen(true)}
-            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
-            Add child
-          </button>
-        </div>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-[opacity,backdrop-filter] duration-150 supports-backdrop-filter:backdrop-blur-sm data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg outline-none">
+              {childDialog === "upgrade" ? (
+                <>
+                  <Dialog.Title className="text-lg font-semibold">
+                    Upgrade to add another child
+                  </Dialog.Title>
+                  <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                    Your plan includes one child. To create and manage routines
+                    for more than one child, upgrade to a paid account.
+                  </Dialog.Description>
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                    <Dialog.Close
+                      type="button"
+                      className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      Close
+                    </Dialog.Close>
+                    <Link
+                      href="/upgrade"
+                      className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                    >
+                      View plans & upgrade
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="text-center text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground sm:text-left"
+                    >
+                      Account & settings
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Dialog.Title className="text-lg font-semibold">
+                    Add a child
+                  </Dialog.Title>
+                  <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                    Enter their name to create morning and evening checklists.
+                  </Dialog.Description>
+                  <form
+                    className="mt-4 flex flex-col gap-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const n = newChildName.trim();
+                      const emoji = newChildEmoji.trim();
+                      if (n && canAddAnotherChild) {
+                        addChildMut.mutate({
+                          name: n,
+                          emoji: emoji || undefined,
+                        });
+                      }
+                    }}
+                  >
+                    <input
+                      value={newChildName}
+                      onChange={(e) => setNewChildName(e.target.value)}
+                      placeholder="Name"
+                      className="h-auto w-full min-w-0 rounded-xl border border-input bg-background px-2.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Choose emoji
+                      </Label>
+                      <EmojiOptionPicker
+                        selected={newChildEmoji}
+                        onSelect={setNewChildEmoji}
+                      />
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Dialog.Close
+                        type="button"
+                        className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                      >
+                        Cancel
+                      </Dialog.Close>
+                      <button
+                        type="submit"
+                        disabled={addChildMut.isPending}
+                        className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
 
+      <Dialog.Root
+        open={morningRoutinesTipOpen}
+        onOpenChange={setMorningRoutinesTipOpen}
+      >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-[opacity,backdrop-filter] duration-150 supports-backdrop-filter:backdrop-blur-sm data-ending-style:opacity-0 data-starting-style:opacity-0" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg outline-none">
               <Dialog.Title className="text-lg font-semibold">
-                Add a child
+                Morning task added
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-muted-foreground">
-                Enter their name to create morning and evening checklists.
+                Your morning routine item is saved. On the free plan it does not
+                show on the kids dashboard. Upgrade to include morning checklists on the dashboard.
               </Dialog.Description>
-              <form
-                className="mt-4 flex flex-col gap-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const n = newChildName.trim();
-                  const emoji = newChildEmoji.trim();
-                  if (n) addChildMut.mutate({ name: n, emoji: emoji || undefined });
-                }}
-              >
-                <input
-                  value={newChildName}
-                  onChange={(e) => setNewChildName(e.target.value)}
-                  placeholder="Name"
-                  className="h-auto w-full min-w-0 rounded-xl border border-input bg-background px-2.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                />
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs text-muted-foreground">Choose emoji</Label>
-                  <EmojiOptionPicker
-                    selected={newChildEmoji}
-                    onSelect={setNewChildEmoji}
-                  />
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Dialog.Close
-                    type="button"
-                    className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                  >
-                    Cancel
-                  </Dialog.Close>
-                  <button
-                    type="submit"
-                    disabled={addChildMut.isPending}
-                    className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                  >
-                    Add
-                  </button>
-                </div>
-              </form>
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                <Dialog.Close
+                  type="button"
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Close
+                </Dialog.Close>
+                <Link
+                  href="/upgrade"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                >
+                  View plans & upgrade
+                </Link>
+              </div>
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>
@@ -559,11 +700,11 @@ export function RoutineConfigView() {
         onDragEnd={onChildrenDragEnd}
       >
         <SortableContext
-          items={data.children.map((section) => section.child.id)}
+          items={visibleChildren.map((section) => section.child.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="flex flex-col gap-8">
-            {data.children.map((section) => (
+            {visibleChildren.map((section) => (
               <SortableConfigChildSection
                 key={section.child.id}
                 section={section}
@@ -572,6 +713,7 @@ export function RoutineConfigView() {
                 addTaskMut={addTaskMut}
                 delChildMut={delChildMut}
                 updateChildMut={updateChildMut}
+                updateChildTimesMut={updateChildTimesMut}
                 delTaskMut={delTaskMut}
                 updateTaskMut={updateTaskMut}
                 reorderMut={reorderMut}
@@ -599,7 +741,15 @@ type ConfigChildSectionProps = {
   delChildMut: { mutate: (id: string) => void };
   updateChildMut: {
     isPending: boolean;
-    mutate: (v: { id: string; emoji: string | null }) => void;
+    mutate: (v: { id: string; emoji: string | null; hiddenOnDashboard?: boolean }) => void;
+  };
+  updateChildTimesMut: {
+    isPending: boolean;
+    mutate: (v: {
+      id: string;
+      morningStart?: string | null;
+      eveningStart?: string | null;
+    }) => void;
   };
   delTaskMut: { mutate: (id: string) => void };
   updateTaskMut: {
@@ -670,6 +820,7 @@ function ConfigChildSection({
   addTaskMut,
   delChildMut,
   updateChildMut,
+  updateChildTimesMut,
   delTaskMut,
   updateTaskMut,
   reorderMut,
@@ -737,6 +888,24 @@ function ConfigChildSection({
   const isEmojiSaving =
     updateChildMut.isPending && (section.child.emoji ?? "") !== emojiDraft;
 
+  const routineTimeOptions = useMemo(
+    () =>
+      mergeHmOptions([
+        section.child.morningStart ?? undefined,
+        section.child.eveningStart ?? undefined,
+      ]),
+    [section.child.morningStart, section.child.eveningStart],
+  );
+
+  const profileTz = profile.timezone?.trim() || "UTC";
+  const routineStartTimeLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of routineTimeOptions) {
+      m.set(t, formatTimeHmForLocaleInProfileZone(t, profileTz));
+    }
+    return m;
+  }, [routineTimeOptions, profileTz]);
+
   function handleEmojiSelect(nextEmoji: string) {
     const normalized = nextEmoji.trim();
     if ((section.child.emoji ?? "") === normalized) {
@@ -753,36 +922,66 @@ function ConfigChildSection({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {childDragHandle ? (
             <button {...childDragHandle}>
               <GripVertical className="size-5 shrink-0" aria-hidden />
             </button>
           ) : null}
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="flex flex-wrap items-center gap-x-1.5 text-xl font-semibold text-foreground">
             {section.child.emoji ? (
-              <span className="mr-1.5 inline-block text-3xl leading-none align-middle" aria-hidden>
+              <span className="inline-flex shrink-0 text-3xl leading-none" aria-hidden>
                 {section.child.emoji}
               </span>
             ) : null}
             {section.child.name}
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (
-              confirm(
-                `Remove ${section.child.name} and all of their tasks?`,
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              updateChildMut.mutate({
+                id: section.child.id,
+                emoji: section.child.emoji ?? null,
+                hiddenOnDashboard: !section.child.hiddenOnDashboard,
+              });
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              section.child.hiddenOnDashboard
+                ? "border-border bg-muted text-muted-foreground hover:bg-muted/80"
+                : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
+            )}
+            title={
+              section.child.hiddenOnDashboard
+                ? "Hidden from dashboard — click to show"
+                : "Visible on dashboard — click to hide"
+            }
+          >
+            {section.child.hiddenOnDashboard ? (
+              <EyeOff className="size-3.5" aria-hidden />
+            ) : (
+              <Eye className="size-3.5" aria-hidden />
+            )}
+            {section.child.hiddenOnDashboard ? "Hidden" : "Visible"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                confirm(
+                  `Remove ${section.child.name} and all of their tasks?`,
+                )
               )
-            )
-              delChildMut.mutate(section.child.id);
-          }}
-          className="text-sm text-destructive hover:underline"
-        >
-          Remove child
-        </button>
+                delChildMut.mutate(section.child.id);
+            }}
+            className="text-sm text-destructive hover:underline"
+          >
+            Remove child
+          </button>
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <div className="flex min-w-[180px] flex-col gap-1">
@@ -796,6 +995,85 @@ function ConfigChildSection({
           <p className="text-xs text-muted-foreground">Saving emoji…</p>
         ) : null}
       </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">
+            Morning start
+          </Label>
+          <Select
+            value={
+              section.child.morningStart ?? DEFAULT_CHILD_MORNING_START
+            }
+            disabled={updateChildTimesMut.isPending}
+            onValueChange={(v) => {
+              const next = v ?? DEFAULT_CHILD_MORNING_START;
+              updateChildTimesMut.mutate({
+                id: section.child.id,
+                morningStart:
+                  next === DEFAULT_CHILD_MORNING_START ? null : next,
+              });
+            }}
+          >
+            <SelectTrigger className="h-auto w-full min-w-0 rounded-xl py-2">
+              <SelectValue />
+            </SelectTrigger>
+            {/* alignItemWithTrigger breaks positioning inside sortable CSS transforms (dnd-kit). */}
+            <SelectContent
+              className="max-h-72"
+              alignItemWithTrigger={false}
+            >
+              {routineTimeOptions.map((t) => (
+                <SelectItem key={`m-${t}`} value={t}>
+                  {routineStartTimeLabels.get(t) ?? t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">
+            Evening start
+          </Label>
+          <Select
+            value={
+              section.child.eveningStart ?? DEFAULT_CHILD_EVENING_START
+            }
+            disabled={updateChildTimesMut.isPending}
+            onValueChange={(v) => {
+              const next = v ?? DEFAULT_CHILD_EVENING_START;
+              updateChildTimesMut.mutate({
+                id: section.child.id,
+                eveningStart:
+                  next === DEFAULT_CHILD_EVENING_START ? null : next,
+              });
+            }}
+          >
+            <SelectTrigger className="h-auto w-full min-w-0 rounded-xl py-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              className="max-h-72"
+              alignItemWithTrigger={false}
+            >
+              {routineTimeOptions.map((t) => (
+                <SelectItem key={`e-${t}`} value={t}>
+                  {routineStartTimeLabels.get(t) ?? t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        15-minute steps; labels follow your device&apos;s clock style (12-hour or
+        24-hour). Morning is from morning start until evening start; evening runs
+        from evening start until morning start the next calendar day (in{" "}
+        <span className="font-medium text-foreground">
+          {profile.timezone?.trim() || "your timezone"}
+        </span>
+        ).
+      </p>
 
       <div className="mt-4 flex flex-col gap-3">
         {tasks.length === 0 ? (

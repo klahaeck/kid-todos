@@ -11,10 +11,11 @@ export type ProfileDoc = {
   /** Dashboard font id; omit on legacy docs → treated as geist */
   dashboardFont?: string;
   timezone: string;
-  morningStart: string;
-  morningEnd: string;
-  eveningStart: string;
-  eveningEnd: string;
+  /** @deprecated Legacy routine windows; ignored by the app */
+  morningStart?: string;
+  morningEnd?: string;
+  eveningStart?: string;
+  eveningEnd?: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -25,9 +26,12 @@ export type ChildDoc = {
   name: string;
   emoji?: string | null;
   sortOrder: number;
+  hiddenOnDashboard?: boolean;
   morningStart: string | null;
+  /** @deprecated Ignored; morning ends at a fixed time */
   morningEnd: string | null;
   eveningStart: string | null;
+  /** @deprecated Ignored; evening ends at a fixed time */
   eveningEnd: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -61,10 +65,6 @@ export type ProfileDTO = {
   colorTheme: ColorThemeId;
   dashboardFont: DashboardFontId;
   timezone: string;
-  morningStart: string;
-  morningEnd: string;
-  eveningStart: string;
-  eveningEnd: string;
 };
 
 export type ChildDTO = {
@@ -73,9 +73,12 @@ export type ChildDTO = {
   name: string;
   emoji: string | null;
   sortOrder: number;
+  hiddenOnDashboard: boolean;
   morningStart: string | null;
+  /** Legacy; always null in API responses */
   morningEnd: string | null;
   eveningStart: string | null;
+  /** Legacy; always null in API responses */
   eveningEnd: string | null;
 };
 

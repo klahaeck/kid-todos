@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Maximize2, Minimize2 } from "lucide-react";
 import {
   useMutation,
   useMutationState,
@@ -18,15 +19,25 @@ import type {
   Routine,
 } from "@/lib/types";
 import {
-  currentMinutesInTimezone,
-  resolveRoutineFilter,
+  routineListAllRoutinesGate,
   routineWindowsSummary,
   routinesVisibleForKidNow,
 } from "@/lib/routine-filter";
 import { useConfetti } from "@/components/confetti-provider";
+import { Button } from "@/components/ui/button";
 
-export function DashboardView({ fontClassName }: { fontClassName: string }) {
+export function DashboardView({
+  fontClassName,
+  hasMultipleChildrenFeature = false,
+  hasAllRoutinesFeature = false,
+}: {
+  fontClassName: string;
+  hasMultipleChildrenFeature?: boolean;
+  hasAllRoutinesFeature?: boolean;
+}) {
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
+  const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -34,6 +45,30 @@ export function DashboardView({ fontClassName }: { fontClassName: string }) {
     }, 30_000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsBrowserFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    syncFullscreenState();
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () =>
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  const isDashboardFullscreen = isBrowserFullscreen || isFallbackFullscreen;
+
+  useEffect(() => {
+    document.body.classList.toggle(
+      "dashboard-fullscreen-mode",
+      isDashboardFullscreen,
+    );
+
+    return () => {
+      document.body.classList.remove("dashboard-fullscreen-mode");
+    };
+  }, [isDashboardFullscreen]);
 
   const queryClient = useQueryClient();
   const toggleMutationKey = ["toggle-task-completion"];
@@ -149,8 +184,18 @@ export function DashboardView({ fontClassName }: { fontClassName: string }) {
     );
   }
 
-  const hasChildren = data.children.length > 0;
-  const hasAnyTask = data.children.some((s) => s.tasks.length > 0);
+  const unhiddenOnDashboard = data.children.filter(
+    (s) => !s.child.hiddenOnDashboard,
+  );
+  const visibleChildren = hasMultipleChildrenFeature
+    ? unhiddenOnDashboard
+    : unhiddenOnDashboard.slice(0, 1);
+  const hasChildren = visibleChildren.length > 0;
+  const hasAnyTask = visibleChildren.some((s) =>
+    hasAllRoutinesFeature
+      ? s.tasks.length > 0
+      : s.tasks.some((t) => t.routine === "evening"),
+  );
   const timezone = data.profile.timezone?.trim() || "UTC";
   const nowDate = new Date(nowMs);
   const timeLabel = new Intl.DateTimeFormat(undefined, {
@@ -158,20 +203,49 @@ export function DashboardView({ fontClassName }: { fontClassName: string }) {
     hour: "numeric",
     minute: "2-digit",
   }).format(nowDate);
-  const resolved = resolveRoutineFilter("auto", data.profile, undefined);
-  const state =
-    resolved?.length === 1
-      ? resolved[0]
-      : currentMinutesInTimezone(timezone) < 12 * 60
-        ? "morning"
-        : "evening";
-  const stateLabel = state === "morning" ? "Morning" : "Evening";
-  const dashboardHeading = `${timeLabel} · ${stateLabel}`;
+  const dashboardHeading = `${timeLabel}`;
+
+  const toggleFullscreen = async () => {
+    if (isBrowserFullscreen && typeof document.exitFullscreen === "function") {
+      await document.exitFullscreen();
+      return;
+    }
+
+    if (isFallbackFullscreen) {
+      setIsFallbackFullscreen(false);
+      return;
+    }
+
+    if (typeof document.documentElement.requestFullscreen === "function") {
+      try {
+        await document.documentElement.requestFullscreen();
+        setIsFallbackFullscreen(false);
+        return;
+      } catch {
+        // Some browsers block fullscreen in specific contexts.
+      }
+    }
+
+    setIsFallbackFullscreen(true);
+  };
 
   return (
     <div
       className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
     >
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => {
+          void toggleFullscreen();
+        }}
+        aria-label={isDashboardFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        title={isDashboardFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        className="absolute top-3 right-3 z-10 sm:top-4 sm:right-4"
+      >
+        {isDashboardFullscreen ? <Minimize2 /> : <Maximize2 />}
+      </Button>
+
       {/* <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
           Tap when you&apos;re done
@@ -219,11 +293,13 @@ export function DashboardView({ fontClassName }: { fontClassName: string }) {
         </header>
       ) : null}
 
-      {data.children.map((section) => (
+      {visibleChildren.map((section) => (
         <KidRoutineBlock
           key={section.child.id}
           section={section}
           profile={data.profile}
+          nowMs={nowMs}
+          hasAllRoutinesFeature={hasAllRoutinesFeature}
           pendingTaskKeys={pendingTaskKeys}
           toggleMut={{ mutate: toggleMut.mutate }}
         />
@@ -245,19 +321,35 @@ export function DashboardView({ fontClassName }: { fontClassName: string }) {
 function KidRoutineBlock({
   section,
   profile,
+  nowMs,
+  hasAllRoutinesFeature,
   pendingTaskKeys,
   toggleMut,
 }: {
   section: ChildSectionDTO;
   profile: ProfileDTO;
+  nowMs: number;
+  hasAllRoutinesFeature: boolean;
   pendingTaskKeys: ReadonlySet<string>;
   toggleMut: {
     mutate: (v: { childId: string; taskId: string }) => void;
   };
 }) {
+  const at = useMemo(() => new Date(nowMs), [nowMs]);
+
+  const naturalRoutines = useMemo(
+    () => routinesVisibleForKidNow(profile, section.child, at),
+    [profile, section.child, at],
+  );
+
+  const isMorningTime = naturalRoutines.includes("morning");
+  const showMorningUpgradeNudge =
+    !hasAllRoutinesFeature && isMorningTime;
+
   const allowedRoutines = useMemo(
-    () => routinesVisibleForKidNow(profile, section.child),
-    [profile, section.child],
+    () =>
+      routineListAllRoutinesGate(naturalRoutines, hasAllRoutinesFeature),
+    [naturalRoutines, hasAllRoutinesFeature],
   );
 
   const tasks = useMemo(
@@ -273,9 +365,9 @@ function KidRoutineBlock({
   return (
     <section className="flex w-full flex-col gap-4 rounded-3xl border-2 border-border bg-card/90 p-5 text-card-foreground shadow-sm">
       <div className="text-center sm:text-left">
-        <h2 className="text-2xl font-bold text-foreground">
+        <h2 className="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold text-foreground">
           {section.child.emoji ? (
-            <span className="mr-1.5 inline-block text-4xl leading-none align-middle" aria-hidden>
+            <span className="inline-flex shrink-0 text-4xl leading-none" aria-hidden>
               {section.child.emoji}
             </span>
           ) : null}
@@ -283,26 +375,50 @@ function KidRoutineBlock({
         </h2>
       </div>
 
-      {tasks.length === 0 ? (
+      {showMorningUpgradeNudge ? (
+        <p className="rounded-2xl border border-border bg-muted/80 px-4 py-4 text-center text-sm text-muted-foreground">
+          It&apos;s morning routine time. Your plan shows evening tasks on this
+          screen only.{" "}
+          <Link
+            href="/upgrade"
+            className="font-semibold text-primary underline"
+          >
+            Upgrade
+          </Link>{" "}
+          to include the morning checklists here. Evening tasks will still show
+          here during the evening window (set per child on{" "}
+          <Link
+            href="/routines"
+            className="font-semibold text-primary underline"
+          >
+            Routines
+          </Link>
+          ).
+        </p>
+      ) : null}
+
+      {tasks.length === 0 && !showMorningUpgradeNudge ? (
         <p className="rounded-2xl bg-muted px-4 py-4 text-center text-sm text-muted-foreground">
           {allowedRoutines.length === 0 ? (
             <>
               It isn&apos;t morning or evening routine time for this child. Windows:{" "}
               <span className="font-medium text-foreground">{windowsLine}</span>
-              . Adjust them in{" "}
+              . Adjust start times under this child on the{" "}
               <Link
-                href="/settings"
+                href="/routines"
                 className="font-semibold text-primary underline"
               >
-                Routine settings
-              </Link>
-              .
+                Routines
+              </Link>{" "}
+              page.
             </>
           ) : (
             <>No tasks in this window yet.</>
           )}
         </p>
-      ) : (
+      ) : null}
+
+      {tasks.length > 0 ? (
         <ul className="flex flex-row flex-wrap gap-3 sm:gap-4">
           {tasks.map((task) => (
             <li key={task.id} className="min-w-0 flex-1 basis-38 sm:basis-44">
@@ -320,7 +436,7 @@ function KidRoutineBlock({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </section>
   );
 }

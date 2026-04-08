@@ -17,10 +17,9 @@ export const updateChildSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(120).optional(),
   emoji: z.string().trim().max(16).nullable().optional(),
+  hiddenOnDashboard: z.boolean().optional(),
   morningStart: timeHmSchema.nullable().optional(),
-  morningEnd: timeHmSchema.nullable().optional(),
   eveningStart: timeHmSchema.nullable().optional(),
-  eveningEnd: timeHmSchema.nullable().optional(),
 });
 
 export const reorderChildrenSchema = z.object({
@@ -49,8 +48,4 @@ export const updateProfileSchema = z.object({
   colorTheme: z.enum(COLOR_THEME_IDS).optional(),
   dashboardFont: z.enum(DASHBOARD_FONT_IDS).optional(),
   timezone: z.string().trim().min(1).max(64).optional(),
-  morningStart: timeHmSchema.optional(),
-  morningEnd: timeHmSchema.optional(),
-  eveningStart: timeHmSchema.optional(),
-  eveningEnd: timeHmSchema.optional(),
 });

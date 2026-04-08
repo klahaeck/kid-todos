@@ -2,6 +2,7 @@
 
 import { ObjectId } from "mongodb";
 import { requireUserId } from "@/lib/authz";
+import { hasMultipleChildrenFeature } from "@/lib/subscription";
 import type { ActionResult, ChildDTO } from "@/lib/types";
 import {
   childToDTO,
@@ -36,6 +37,17 @@ export async function createChildAction(
     const parsed = createChildSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
+    }
+    const existingChildren = await listChildrenForUser(userId);
+    if (existingChildren.length >= 1) {
+      const canHaveMultipleChildren = await hasMultipleChildrenFeature();
+      if (!canHaveMultipleChildren) {
+        return {
+          ok: false,
+          error:
+            "Upgrade required: your subscription does not include multiple children.",
+        };
+      }
     }
     const row = await createChild(userId, parsed.data.name, parsed.data.emoji);
     return { ok: true, data: childToDTO(row) };

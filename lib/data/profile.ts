@@ -12,10 +12,6 @@ const DEFAULTS = {
   dashboardFont: DEFAULT_DASHBOARD_FONT,
   /** Empty until the user saves a zone from settings (UI defaults to device TZ). */
   timezone: "",
-  morningStart: "06:00",
-  morningEnd: "12:00",
-  eveningStart: "17:00",
-  eveningEnd: "21:00",
 };
 
 function col(): Promise<Collection<ProfileDoc & Document>> {
@@ -29,10 +25,6 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
     colorTheme: normalizeColorTheme(p.colorTheme),
     dashboardFont: normalizeDashboardFont(p.dashboardFont),
     timezone: p.timezone,
-    morningStart: p.morningStart,
-    morningEnd: p.morningEnd,
-    eveningStart: p.eveningStart,
-    eveningEnd: p.eveningEnd,
   };
 }
 
@@ -49,10 +41,6 @@ export async function ensureProfileForClerkUser(
     colorTheme: DEFAULTS.colorTheme,
     dashboardFont: DEFAULTS.dashboardFont,
     timezone: DEFAULTS.timezone,
-    morningStart: DEFAULTS.morningStart,
-    morningEnd: DEFAULTS.morningEnd,
-    eveningStart: DEFAULTS.eveningStart,
-    eveningEnd: DEFAULTS.eveningEnd,
     createdAt: now,
     updatedAt: now,
   };
@@ -76,10 +64,6 @@ export async function updateProfileForUser(
     colorTheme: string;
     dashboardFont: string;
     timezone: string;
-    morningStart: string;
-    morningEnd: string;
-    eveningStart: string;
-    eveningEnd: string;
   }>,
 ): Promise<WithId<ProfileDoc>> {
   await ensureIndexes();

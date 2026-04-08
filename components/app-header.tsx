@@ -14,7 +14,10 @@ export function AppHeader() {
   const isAdmin = user?.publicMetadata?.role === "admin";
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3">
+    <header
+      data-app-chrome="header"
+      className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3"
+    >
       <Link
         href="/"
         className="text-lg font-bold tracking-tight text-foreground"
@@ -61,14 +64,14 @@ export function AppHeader() {
               Sign in
             </button>
           </SignInButton>
-          <SignUpButton mode="modal">
-            <button
+          <SignUpButton
+            mode="modal"
+          ><button
               type="button"
               className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground"
             >
               Sign up
-            </button>
-          </SignUpButton>
+            </button></SignUpButton>
         </Show>
       </nav>
     </header>

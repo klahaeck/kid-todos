@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { Dialog } from "@base-ui/react/dialog";
 import {
   useMutation,
   useQuery,
@@ -10,13 +12,16 @@ import {
 import { getProfile, updateProfile } from "@/app/actions/profile";
 import { queryKeys } from "@/lib/query-keys";
 import type { ProfileDTO } from "@/lib/types";
-import { applyColorThemeToDocument } from "@/lib/apply-theme";
 import {
   COLOR_THEME_OPTIONS,
+  DEFAULT_COLOR_THEME,
+  normalizeColorTheme,
   type ColorThemeId,
 } from "@/lib/color-themes";
 import {
   DASHBOARD_FONT_OPTIONS,
+  DEFAULT_DASHBOARD_FONT,
+  normalizeDashboardFont,
   type DashboardFontId,
 } from "@/lib/dashboard-font-options";
 import { getDashboardFontClassName } from "@/lib/dashboard-fonts";
@@ -40,83 +45,82 @@ const IANA_TIMEZONES: string[] = (() => {
   }
 })();
 
-/** 24h HH:mm in 15-minute steps (matches routine windows UX). */
-const QUARTER_HOUR_TIMES: string[] = (() => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 15, 30, 45]) {
-      out.push(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-      );
-    }
-  }
-  return out;
-})();
+const PREVIEW_TASKS = [
+  { label: "Get dressed", done: true },
+  { label: "Brush teeth", done: true },
+  { label: "Pack backpack", done: false },
+  { label: "Put shoes on", done: false },
+];
 
-function mergeHmOptions(extras: (string | undefined)[]): string[] {
-  const set = new Set(QUARTER_HOUR_TIMES);
-  for (const t of extras) {
-    if (t && /^\d{2}:\d{2}$/.test(t)) set.add(t);
-  }
-  return [...set].sort((a, b) => a.localeCompare(b));
-}
-
-type TimeHmFieldProps = {
-  id: string;
-  label: string;
-  name: string;
-  value: string;
-  onValueChange: (v: string) => void;
-  options: string[];
-};
-
-function TimeHmField({
-  id,
-  label,
-  name,
-  value,
-  onValueChange,
-  options,
-}: TimeHmFieldProps) {
+function DashboardPreview({
+  colorTheme,
+  fontClassName,
+}: {
+  colorTheme: ColorThemeId;
+  fontClassName: string;
+}) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className="text-muted-foreground">
-        {label}
-      </Label>
-      <input type="hidden" name={name} value={value} />
-      <Select
-        value={value || null}
-        onValueChange={(v) => onValueChange(v ?? "")}
-      >
-        <SelectTrigger
-          id={id}
-          className="h-auto w-full min-w-0 rounded-xl py-2"
-        >
-          <SelectValue placeholder="Not set" />
-        </SelectTrigger>
-        <SelectContent className="max-h-72">
-          <SelectItem value="">Not set</SelectItem>
-          {options.map((t) => (
-            <SelectItem key={t} value={t}>
-              {t}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div
+      data-theme={colorTheme === "classic" ? undefined : colorTheme}
+      className="rounded-2xl border border-border bg-background p-4"
+    >
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Dashboard preview
+      </p>
+      <div className={fontClassName}>
+        <div className="rounded-2xl border-2 border-border bg-card/90 p-4">
+          <p className="text-lg font-bold text-foreground">
+            <span className="mr-1.5 inline-block text-2xl leading-none align-middle" aria-hidden>
+              🐻
+            </span>
+            Sample Kid
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {PREVIEW_TASKS.map((t) => (
+              <div
+                key={t.label}
+                className={`rounded-2xl border-3 px-3 py-3 text-center text-sm font-bold leading-snug ${
+                  t.done
+                    ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
+                    : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg)"
+                }`}
+              >
+                {t.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function profileSettingsKey(p: ProfileDTO) {
-  return [
-    p.colorTheme,
-    p.dashboardFont,
-    p.timezone,
-    p.morningStart,
-    p.morningEnd,
-    p.eveningStart,
-    p.eveningEnd,
-  ].join("\0");
+  return [p.colorTheme, p.dashboardFont, p.timezone].join("\0");
+}
+
+/** Persists the device IANA timezone when the profile has none, so “today” matches the user without an extra Save click. */
+function AutoDefaultTimezone({ profile }: { profile: ProfileDTO }) {
+  const queryClient = useQueryClient();
+  const ranRef = useRef(false);
+
+  useEffect(() => {
+    if (profile.timezone?.trim()) return;
+    if (ranRef.current) return;
+    ranRef.current = true;
+    const tz = getLocalTimeZone();
+    void (async () => {
+      const r = await updateProfile({ timezone: tz });
+      if (r.ok) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      } else {
+        ranRef.current = false;
+      }
+    })();
+  }, [profile.timezone, queryClient]);
+
+  return null;
 }
 
 function SettingsFormFields({
@@ -129,10 +133,6 @@ function SettingsFormFields({
   const initialTimezone = profile.timezone?.trim()
     ? profile.timezone.trim()
     : getLocalTimeZone();
-  const initialMorningStart = profile.morningStart ?? "";
-  const initialMorningEnd = profile.morningEnd ?? "";
-  const initialEveningStart = profile.eveningStart ?? "";
-  const initialEveningEnd = profile.eveningEnd ?? "";
   const initialColorTheme = profile.colorTheme;
   const initialDashboardFont = profile.dashboardFont;
 
@@ -149,26 +149,6 @@ function SettingsFormFields({
     initialTimezone,
   );
 
-  const timeOptions = useMemo(
-    () =>
-      mergeHmOptions([
-        profile.morningStart,
-        profile.morningEnd,
-        profile.eveningStart,
-        profile.eveningEnd,
-      ]),
-    [
-      profile.morningStart,
-      profile.morningEnd,
-      profile.eveningStart,
-      profile.eveningEnd,
-    ],
-  );
-
-  const [morningStart, setMorningStart] = useState(initialMorningStart);
-  const [morningEnd, setMorningEnd] = useState(initialMorningEnd);
-  const [eveningStart, setEveningStart] = useState(initialEveningStart);
-  const [eveningEnd, setEveningEnd] = useState(initialEveningEnd);
   const [colorTheme, setColorTheme] = useState<ColorThemeId>(
     initialColorTheme,
   );
@@ -180,16 +160,9 @@ function SettingsFormFields({
     [dashboardFont],
   );
 
-  useEffect(() => {
-    applyColorThemeToDocument(colorTheme);
-  }, [colorTheme]);
 
   const hasUnsavedChanges =
     timezone !== initialTimezone ||
-    morningStart !== initialMorningStart ||
-    morningEnd !== initialMorningEnd ||
-    eveningStart !== initialEveningStart ||
-    eveningEnd !== initialEveningEnd ||
     colorTheme !== initialColorTheme ||
     dashboardFont !== initialDashboardFont;
   const isSaveDisabled = saveMut.isPending || !hasUnsavedChanges;
@@ -203,9 +176,15 @@ function SettingsFormFields({
     <div className="mx-auto max-w-lg p-6">
       <h1 className="text-2xl font-bold text-foreground">Routine settings</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Times are 24-hour <code className="text-xs">HH:mm</code> in 15-minute
-        steps; any other saved time still appears in the lists. “Today” for
-        completions uses your timezone.
+        “Today” for task completions uses your timezone. Set each child&apos;s
+        morning and evening start times on the{" "}
+        <Link
+          href="/routines"
+          className="font-medium text-primary underline underline-offset-2"
+        >
+          Routines
+        </Link>{" "}
+        page.
       </p>
 
       <form
@@ -274,21 +253,18 @@ function SettingsFormFields({
           <p className="text-xs text-muted-foreground">
             This only changes text style on the kids dashboard page.
           </p>
-          <div className="rounded-xl border border-border bg-card p-3">
-            <p className="mb-1 text-xs text-muted-foreground">Preview</p>
-            <p
-              className={`text-lg text-card-foreground ${dashboardFontPreviewClassName}`}
-            >
-              Tap when you&apos;re done! Great job!
-            </p>
-          </div>
         </div>
+
+        <DashboardPreview
+          colorTheme={colorTheme}
+          fontClassName={dashboardFontPreviewClassName}
+        />
         <div className="flex flex-col gap-2">
           <Label
             htmlFor="timezone-select"
             className="text-muted-foreground"
           >
-            IANA timezone
+            Timezone
           </Label>
           <input type="hidden" name="timezone" value={timezone} />
           <Select
@@ -301,7 +277,8 @@ function SettingsFormFields({
             >
               <SelectValue placeholder="Choose a timezone" />
             </SelectTrigger>
-            <SelectContent className="max-h-72">
+            {/* Long lists + alignItemWithTrigger pin the selected row to the trigger, shifting the panel far above it. */}
+            <SelectContent className="max-h-72" alignItemWithTrigger={false}>
               <SelectItem value="">Not set</SelectItem>
               {timezoneOptions.map((tz) => (
                 <SelectItem key={tz} value={tz}>
@@ -310,40 +287,6 @@ function SettingsFormFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TimeHmField
-            id="morning-start"
-            label="Morning start"
-            name="morningStart"
-            value={morningStart}
-            onValueChange={setMorningStart}
-            options={timeOptions}
-          />
-          <TimeHmField
-            id="morning-end"
-            label="Morning end"
-            name="morningEnd"
-            value={morningEnd}
-            onValueChange={setMorningEnd}
-            options={timeOptions}
-          />
-          <TimeHmField
-            id="evening-start"
-            label="Evening start"
-            name="eveningStart"
-            value={eveningStart}
-            onValueChange={setEveningStart}
-            options={timeOptions}
-          />
-          <TimeHmField
-            id="evening-end"
-            label="Evening end"
-            name="eveningEnd"
-            value={eveningEnd}
-            onValueChange={setEveningEnd}
-            options={timeOptions}
-          />
         </div>
         {saveMut.isError ? (
           <p className="text-sm text-red-600">
@@ -364,8 +307,13 @@ function SettingsFormFields({
   );
 }
 
-export function SettingsForm() {
+export function SettingsForm({
+  hasAllThemesFeature,
+}: {
+  hasAllThemesFeature: boolean;
+}) {
   const queryClient = useQueryClient();
+  const [themeUpgradeOpen, setThemeUpgradeOpen] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: queryKeys.profile,
@@ -381,25 +329,27 @@ export function SettingsForm() {
       const colorThemeRaw = String(form.get("colorTheme") ?? "").trim();
       const dashboardFontRaw = String(form.get("dashboardFont") ?? "").trim();
       const timezone = String(form.get("timezone") ?? "").trim();
-      const morningStart = String(form.get("morningStart") ?? "").trim();
-      const morningEnd = String(form.get("morningEnd") ?? "").trim();
-      const eveningStart = String(form.get("eveningStart") ?? "").trim();
-      const eveningEnd = String(form.get("eveningEnd") ?? "").trim();
       const r = await updateProfile({
         colorTheme: (colorThemeRaw || "classic") as ColorThemeId,
         dashboardFont: (dashboardFontRaw || "geist") as DashboardFontId,
         timezone: timezone || undefined,
-        morningStart: morningStart || undefined,
-        morningEnd: morningEnd || undefined,
-        eveningStart: eveningStart || undefined,
-        eveningEnd: eveningEnd || undefined,
       });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      if (!hasAllThemesFeature) {
+        const ct = normalizeColorTheme(data.colorTheme);
+        const df = normalizeDashboardFont(data.dashboardFont);
+        if (
+          ct !== DEFAULT_COLOR_THEME ||
+          df !== DEFAULT_DASHBOARD_FONT
+        ) {
+          setThemeUpgradeOpen(true);
+        }
+      }
     },
   });
 
@@ -418,10 +368,46 @@ export function SettingsForm() {
   }
 
   return (
-    <SettingsFormFields
-      key={profileSettingsKey(profileQuery.data)}
-      profile={profileQuery.data}
-      saveMut={saveMut}
-    />
+    <>
+      <AutoDefaultTimezone profile={profileQuery.data} />
+      <SettingsFormFields
+        key={profileSettingsKey(profileQuery.data)}
+        profile={profileQuery.data}
+        saveMut={saveMut}
+      />
+      <Dialog.Root open={themeUpgradeOpen} onOpenChange={setThemeUpgradeOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-[opacity,backdrop-filter] duration-150 supports-backdrop-filter:backdrop-blur-sm data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg outline-none">
+              <Dialog.Title className="text-lg font-semibold">
+                Preferences saved
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                Your theme and font are saved. On the free plan they do not
+                appear on the kids dashboard yet—only Classic colors and the
+                default font show there until your subscription includes the{" "}
+                <span className="font-medium text-foreground">all_themes</span>{" "}
+                feature. Upgrade to see your choices on the dashboard.
+              </Dialog.Description>
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                <Dialog.Close
+                  type="button"
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Close
+                </Dialog.Close>
+                <Link
+                  href="/upgrade"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                >
+                  View plans & upgrade
+                </Link>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }

@@ -13,10 +13,11 @@ export function childToDTO(c: WithId<ChildDoc>): ChildDTO {
     name: c.name,
     emoji: c.emoji ?? null,
     sortOrder: c.sortOrder,
+    hiddenOnDashboard: c.hiddenOnDashboard === true,
     morningStart: c.morningStart,
-    morningEnd: c.morningEnd,
+    morningEnd: null,
     eveningStart: c.eveningStart,
-    eveningEnd: c.eveningEnd,
+    eveningEnd: null,
   };
 }
 
@@ -72,6 +73,7 @@ export async function updateChildForUser(
   patch: Partial<{
     name: string;
     emoji: string | null;
+    hiddenOnDashboard: boolean;
     morningStart: string | null;
     morningEnd: string | null;
     eveningStart: string | null;

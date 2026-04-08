@@ -1,6 +1,11 @@
+import { formatTimeHmForLocaleInProfileZone } from "@/lib/format-time-hm";
 import type { Routine } from "@/lib/types";
 
 export type RoutineTab = "all" | "morning" | "evening" | "auto";
+
+/** When a child has no saved start, the dashboard uses these. */
+export const DEFAULT_CHILD_MORNING_START = "06:00";
+export const DEFAULT_CHILD_EVENING_START = "18:00";
 
 function parseHm(s: string): number {
   const [h, m] = s.split(":").map((x) => parseInt(x, 10));
@@ -9,9 +14,12 @@ function parseHm(s: string): number {
 }
 
 /** Current clock time in `timezone` as minutes from midnight (for window checks). */
-export function currentMinutesInTimezone(timezone: string): number {
+export function currentMinutesInTimezone(
+  timezone: string,
+  at: Date = new Date(),
+): number {
   const tz = (timezone ?? "").trim() || "UTC";
-  const date = new Date();
+  const date = at;
   try {
     const parts = new Intl.DateTimeFormat("en-GB", {
       timeZone: tz,
@@ -52,90 +60,75 @@ export function currentMinutesInTimezone(timezone: string): number {
   return 0;
 }
 
-function inWindow(
-  now: number,
-  start: string,
-  end: string,
-): boolean {
-  const a = parseHm(start);
-  const b = parseHm(end);
-  if (a <= b) return now >= a && now <= b;
-  return now >= a || now <= b;
+export type RoutineTimezoneContext = {
+  timezone: string;
+};
+
+export type ChildRoutineStarts = {
+  morningStart: string | null;
+  eveningStart: string | null;
+};
+
+function effectiveStarts(child?: ChildRoutineStarts | null): {
+  morningStart: string;
+  eveningStart: string;
+} {
+  return {
+    morningStart: child?.morningStart ?? DEFAULT_CHILD_MORNING_START,
+    eveningStart: child?.eveningStart ?? DEFAULT_CHILD_EVENING_START,
+  };
+}
+
+/**
+ * Morning vs evening from start times only (no fixed end times).
+ * Morning: [morningStart, eveningStart). Evening: [eveningStart, 24:00) ∪ [0, morningStart).
+ * If morningStart >= eveningStart (invalid ordering), falls back to default starts.
+ */
+export function routinePhaseFromStarts(
+  nowMinutes: number,
+  child?: ChildRoutineStarts | null,
+): Routine[] {
+  const { morningStart: mStr, eveningStart: eStr } = effectiveStarts(child);
+  let m = parseHm(mStr);
+  let e = parseHm(eStr);
+  if (m >= e) {
+    m = parseHm(DEFAULT_CHILD_MORNING_START);
+    e = parseHm(DEFAULT_CHILD_EVENING_START);
+  }
+  const inMorning = nowMinutes >= m && nowMinutes < e;
+  if (inMorning) return ["morning"];
+  return ["evening"];
 }
 
 export function resolveRoutineFilter(
   tab: RoutineTab,
-  profile: {
-    timezone: string;
-    morningStart: string;
-    morningEnd: string;
-    eveningStart: string;
-    eveningEnd: string;
-  },
-  child?: {
-    morningStart: string | null;
-    morningEnd: string | null;
-    eveningStart: string | null;
-    eveningEnd: string | null;
-  } | null,
+  profile: RoutineTimezoneContext,
+  child?: ChildRoutineStarts | null,
+  at: Date = new Date(),
 ): Routine[] | null {
   if (tab === "all") return null;
   if (tab === "morning") return ["morning"];
   if (tab === "evening") return ["evening"];
   const tz = profile.timezone;
-  const now = currentMinutesInTimezone(tz);
-  const mStart = child?.morningStart ?? profile.morningStart;
-  const mEnd = child?.morningEnd ?? profile.morningEnd;
-  const eStart = child?.eveningStart ?? profile.eveningStart;
-  const eEnd = child?.eveningEnd ?? profile.eveningEnd;
-  const inM = inWindow(now, mStart, mEnd);
-  const inE = inWindow(now, eStart, eEnd);
-  if (inM && !inE) return ["morning"];
-  if (inE && !inM) return ["evening"];
-  if (inM && inE) return ["morning", "evening"];
-  return null;
+  const now = currentMinutesInTimezone(tz, at);
+  return routinePhaseFromStarts(now, child);
 }
 
 /** Heading for kid dashboard when using automatic time-of-day windows. */
 export function autoRoutineHeading(
-  profile: {
-    timezone: string;
-    morningStart: string;
-    morningEnd: string;
-    eveningStart: string;
-    eveningEnd: string;
-  },
-  child?: {
-    morningStart: string | null;
-    morningEnd: string | null;
-    eveningStart: string | null;
-    eveningEnd: string | null;
-  } | null,
+  profile: RoutineTimezoneContext,
+  child?: ChildRoutineStarts | null,
 ): string {
   const r = resolveRoutineFilter("auto", profile, child);
   if (r === null) return "Today's tasks";
-  if (r.length === 2) return "Morning & evening";
   return r[0] === "morning" ? "Morning" : "Evening";
 }
 
-export type ProfileWindows = {
-  timezone: string;
-  morningStart: string;
-  morningEnd: string;
-  eveningStart: string;
-  eveningEnd: string;
-};
+export type ChildWindowOverrides = ChildRoutineStarts;
 
-export type ChildWindowOverrides = {
-  morningStart: string | null;
-  morningEnd: string | null;
-  eveningStart: string | null;
-  eveningEnd: string | null;
-};
-
-/** Effective morning/evening windows (child overrides, else profile). */
+/** Effective morning/evening starts (per child); phase boundaries are the other start. */
 export function effectiveRoutineWindows(
-  profile: ProfileWindows,
+  _profile: RoutineTimezoneContext,
   child?: ChildWindowOverrides | null,
 ): {
   morningStart: string;
@@ -143,43 +136,67 @@ export function effectiveRoutineWindows(
   eveningStart: string;
   eveningEnd: string;
 } {
+  const s = effectiveStarts(child);
   return {
-    morningStart: child?.morningStart ?? profile.morningStart,
-    morningEnd: child?.morningEnd ?? profile.morningEnd,
-    eveningStart: child?.eveningStart ?? profile.eveningStart,
-    eveningEnd: child?.eveningEnd ?? profile.eveningEnd,
+    morningStart: s.morningStart,
+    morningEnd: s.eveningStart,
+    eveningStart: s.eveningStart,
+    eveningEnd: s.morningStart,
   };
 }
 
-/** One-line summary of windows for UI copy (uses routine settings + per-child overrides). */
+/** One-line summary for UI copy (per-child starts; each phase runs until the other start). */
 export function routineWindowsSummary(
-  profile: ProfileWindows,
+  profile: RoutineTimezoneContext,
   child?: ChildWindowOverrides | null,
 ): string {
-  const w = effectiveRoutineWindows(profile, child);
-  return `Morning ${w.morningStart}–${w.morningEnd} · Evening ${w.eveningStart}–${w.eveningEnd}`;
+  const s = effectiveStarts(child);
+  const tz = profile.timezone?.trim() || "UTC";
+  const fmt = (t: string) => formatTimeHmForLocaleInProfileZone(t, tz);
+  return `Morning from ${fmt(s.morningStart)} until ${fmt(s.eveningStart)} · Evening from ${fmt(s.eveningStart)} until ${fmt(s.morningStart)}`;
 }
 
 /**
- * Kid dashboard: only show morning and/or evening tasks when local time (profile timezone)
- * falls in the windows from routine settings (or per-child overrides). Outside both windows → none.
+ * Kid dashboard: show morning or evening for that child from profile timezone and
+ * that child's morning/evening start times (each phase runs until the other start).
  */
 export function routinesVisibleForKidNow(
-  profile: ProfileWindows,
+  profile: RoutineTimezoneContext,
   child?: ChildWindowOverrides | null,
+  at: Date = new Date(),
 ): Routine[] {
-  const resolved = resolveRoutineFilter("auto", profile, child ?? undefined);
-  if (resolved === null) return [];
-  return resolved;
+  return resolveRoutineFilter("auto", profile, child ?? undefined, at) ?? [];
 }
 
-/** Short heading for the kid dashboard (never implies “all tasks” when outside windows). */
+/**
+ * When the user lacks Clerk `all_routines`, only evening tasks are shown or editable.
+ * `filter` is the result of {@link resolveRoutineFilter} (`null` = show all routines).
+ */
+export function applyAllRoutinesFeatureGate(
+  filter: Routine[] | null,
+  hasAllRoutinesFeature: boolean,
+): Routine[] | null {
+  if (hasAllRoutinesFeature) return filter;
+  if (filter === null) return ["evening"];
+  const eveningOnly = filter.filter((r) => r === "evening");
+  return eveningOnly.length > 0 ? eveningOnly : [];
+}
+
+/** Applies the same rule to an already-resolved list (e.g. kid dashboard auto windows). */
+export function routineListAllRoutinesGate(
+  routines: Routine[],
+  hasAllRoutinesFeature: boolean,
+): Routine[] {
+  if (hasAllRoutinesFeature) return routines;
+  return routines.filter((r) => r === "evening");
+}
+
+/** Short heading for the kid dashboard (auto mode uses start times only). */
 export function kidRoutineHeading(
-  profile: ProfileWindows,
+  profile: RoutineTimezoneContext,
   child?: ChildWindowOverrides | null,
+  at: Date = new Date(),
 ): string {
-  const resolved = resolveRoutineFilter("auto", profile, child ?? undefined);
-  if (resolved === null) return "Not routine time";
-  if (resolved.length === 2) return "Morning & evening";
-  return resolved[0] === "morning" ? "Morning routine" : "Evening routine";
+  const resolved = resolveRoutineFilter("auto", profile, child ?? undefined, at);
+  return resolved?.[0] === "morning" ? "Morning routine" : "Evening routine";
 }

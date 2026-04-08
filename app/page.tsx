@@ -1,3 +1,4 @@
+import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 
 function Sparkle({ className }: { className?: string }) {
@@ -89,18 +90,30 @@ export default function Home() {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/sign-up"
-              className="rounded-full bg-orange-500 px-6 py-3 text-base font-bold text-white shadow-md transition hover:bg-orange-600 hover:shadow-lg"
-            >
-              Start for free
-            </Link>
-            <Link
-              href="/sign-in"
-              className="rounded-full border-2 border-amber-300 bg-white px-6 py-3 text-base font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-50"
-            >
-              I already have an account
-            </Link>
+            <Show when="signed-out">
+              <SignUpButton mode="modal"><button
+                  type="button"
+                  className="rounded-full bg-orange-500 px-6 py-3 text-base font-bold text-white shadow-md transition hover:bg-orange-600 hover:shadow-lg"
+                >
+                  Start for free
+                </button></SignUpButton>
+              <SignInButton mode="modal">
+                <button
+                  type="button"
+                  className="rounded-full border-2 border-amber-300 bg-white px-6 py-3 text-base font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-50"
+                >
+                  I already have an account
+                </button>
+              </SignInButton>
+            </Show>
+            <Show when="signed-in">
+              <Link
+                href="/dashboard"
+                className="rounded-full bg-orange-500 px-6 py-3 text-base font-bold text-white shadow-md transition hover:bg-orange-600 hover:shadow-lg"
+              >
+                Go to dashboard
+              </Link>
+            </Show>
           </div>
         </div>
       </section>
