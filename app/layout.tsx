@@ -37,7 +37,7 @@ export default function RootLayout({
         <ClerkProvider>
           <Providers>
             <AppHeader />
-            <main className="relative flex-1">{children}</main>
+            <main className="relative flex min-h-0 flex-1 flex-col">{children}</main>
             <AppFooter />
           </Providers>
         </ClerkProvider>

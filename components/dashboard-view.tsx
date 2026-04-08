@@ -168,7 +168,7 @@ export function DashboardView({
 
   if (dashboardQuery.isLoading) {
     return (
-      <p className="p-8 text-center text-xl text-muted-foreground">
+      <p className="w-full p-8 text-center text-xl text-muted-foreground">
         Loading…
       </p>
     );
@@ -176,7 +176,7 @@ export function DashboardView({
 
   if (dashboardQuery.isError || !data) {
     return (
-      <p className="p-8 text-center text-xl text-red-600">
+      <p className="w-full p-8 text-center text-xl text-red-600">
         {dashboardQuery.error instanceof Error
           ? dashboardQuery.error.message
           : "Something went wrong"}
@@ -231,7 +231,7 @@ export function DashboardView({
 
   return (
     <div
-      className={`mx-auto flex min-h-[60vh] max-w-5xl flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
+      className={`flex w-full flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
     >
       <Button
         variant="ghost"
