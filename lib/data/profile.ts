@@ -24,7 +24,7 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
     clerkId: p.clerkId,
     colorTheme: normalizeColorTheme(p.colorTheme),
     dashboardFont: normalizeDashboardFont(p.dashboardFont),
-    timezone: p.timezone,
+    timezone: typeof p.timezone === "string" ? p.timezone : "",
   };
 }
 
@@ -33,21 +33,28 @@ export async function ensureProfileForClerkUser(
 ): Promise<WithId<ProfileDoc>> {
   await ensureIndexes();
   const c = await col();
-  const existing = await c.findOne({ clerkId });
-  if (existing) return existing;
   const now = new Date();
-  const doc: Omit<ProfileDoc, "_id"> = {
-    clerkId,
-    colorTheme: DEFAULTS.colorTheme,
-    dashboardFont: DEFAULTS.dashboardFont,
-    timezone: DEFAULTS.timezone,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const { insertedId } = await c.insertOne(doc as ProfileDoc & Document);
-  const created = await c.findOne({ _id: insertedId });
-  if (!created) throw new Error("Failed to create profile");
-  return created;
+  /** Upsert avoids E11000 when getProfile and updateProfile run concurrently (e.g. Strict Mode + AutoDefaultTimezone). */
+  const doc = await c.findOneAndUpdate(
+    { clerkId },
+    {
+      $setOnInsert: {
+        clerkId,
+        colorTheme: DEFAULTS.colorTheme,
+        dashboardFont: DEFAULTS.dashboardFont,
+        timezone: DEFAULTS.timezone,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true, returnDocument: "after" },
+  );
+  if (!doc) {
+    const fallback = await c.findOne({ clerkId });
+    if (!fallback) throw new Error("Failed to ensure profile");
+    return fallback;
+  }
+  return doc;
 }
 
 export async function getProfileByClerkId(
