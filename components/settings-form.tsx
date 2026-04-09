@@ -332,7 +332,7 @@ export function SettingsForm({
       const r = await updateProfile({
         colorTheme: (colorThemeRaw || "classic") as ColorThemeId,
         dashboardFont: (dashboardFontRaw || "geist") as DashboardFontId,
-        timezone: timezone || undefined,
+        timezone,
       });
       if (!r.ok) throw new Error(r.error);
       return r.data;

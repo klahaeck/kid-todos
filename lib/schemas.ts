@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { COLOR_THEME_IDS } from "@/lib/color-themes";
 import { DASHBOARD_FONT_IDS } from "@/lib/dashboard-font-options";
+import { isValidIanaTimeZone, isValidTimeHm } from "@/lib/time-validation";
 
 export const routineSchema = z.enum(["morning", "evening"]);
 
 export const timeHmSchema = z
   .string()
-  .regex(/^\d{2}:\d{2}$/, "Use HH:mm (24h)");
+  .trim()
+  .refine(isValidTimeHm, "Use HH:mm (24h)");
 
 export const createChildSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -47,5 +49,12 @@ export const reorderTasksSchema = z.object({
 export const updateProfileSchema = z.object({
   colorTheme: z.enum(COLOR_THEME_IDS).optional(),
   dashboardFont: z.enum(DASHBOARD_FONT_IDS).optional(),
-  timezone: z.string().trim().min(1).max(64).optional(),
+  timezone: z
+    .string()
+    .trim()
+    .max(64)
+    .refine((value) => value === "" || isValidIanaTimeZone(value), {
+      message: "Invalid timezone",
+    })
+    .optional(),
 });

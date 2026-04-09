@@ -4,7 +4,7 @@ import type { ChildSectionDTO, DashboardDTO } from "@/lib/types";
 import { childToDTO, listChildrenForUser } from "@/lib/data/children";
 import { listCompletionsForDay } from "@/lib/data/completions";
 import { ensureProfileForClerkUser, profileToDTO } from "@/lib/data/profile";
-import { listTasksForChild, taskToDTO } from "@/lib/data/tasks";
+import { listTasksForUserChildren, taskToDTO } from "@/lib/data/tasks";
 
 export async function buildDashboardForUser(
   clerkId: string,
@@ -13,7 +13,10 @@ export async function buildDashboardForUser(
   const today = todayInTimezone(profile.timezone);
   const children = await listChildrenForUser(clerkId);
   const childIds = children.map((ch) => ch._id);
-  const completions = await listCompletionsForDay(clerkId, today, childIds);
+  const [completions, tasksByChild] = await Promise.all([
+    listCompletionsForDay(clerkId, today, childIds),
+    listTasksForUserChildren(clerkId, childIds),
+  ]);
   const byChild = new Map<string, Set<string>>();
   for (const comp of completions) {
     const key = comp.childId.toHexString();
@@ -23,7 +26,7 @@ export async function buildDashboardForUser(
 
   const sections: ChildSectionDTO[] = [];
   for (const ch of children) {
-    const tasks = await listTasksForChild(clerkId, ch._id);
+    const tasks = tasksByChild.get(ch._id.toHexString()) ?? [];
     const done = byChild.get(ch._id.toHexString()) ?? new Set();
     sections.push({
       child: childToDTO(ch),

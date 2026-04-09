@@ -1,4 +1,5 @@
 import { todayInTimezone } from "@/lib/date";
+import { resolveTimeZone } from "@/lib/time-validation";
 
 function parseYmd(s: string): { y: number; m: number; d: number } | null {
   const parts = s.split("-").map((x) => parseInt(x, 10));
@@ -23,7 +24,7 @@ export function utcInstantForProfileWallClock(
   }
   const { y, m, d } = ymd;
   const [h, mi] = hmParts;
-  const tz = timeZone.trim() || "UTC";
+  const tz = resolveTimeZone(timeZone);
   const probe = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",
@@ -59,7 +60,7 @@ export function formatTimeHmForLocaleInProfileZone(
   hm: string,
   profileTimezone: string,
 ): string {
-  const tz = profileTimezone.trim() || "UTC";
+  const tz = resolveTimeZone(profileTimezone);
   const today = todayInTimezone(tz);
   const instant = utcInstantForProfileWallClock(today, hm, tz);
   return new Intl.DateTimeFormat(undefined, {

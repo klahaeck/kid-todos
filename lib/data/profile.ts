@@ -6,6 +6,7 @@ import {
   normalizeDashboardFont,
 } from "@/lib/dashboard-font-options";
 import type { ProfileDoc, ProfileDTO } from "@/lib/types";
+import { normalizeStoredTimeZone } from "@/lib/time-validation";
 
 const DEFAULTS = {
   colorTheme: DEFAULT_COLOR_THEME,
@@ -24,7 +25,7 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
     clerkId: p.clerkId,
     colorTheme: normalizeColorTheme(p.colorTheme),
     dashboardFont: normalizeDashboardFont(p.dashboardFont),
-    timezone: typeof p.timezone === "string" ? p.timezone : "",
+    timezone: normalizeStoredTimeZone(p.timezone),
   };
 }
 
@@ -76,9 +77,13 @@ export async function updateProfileForUser(
   await ensureIndexes();
   const c = await col();
   const profile = await ensureProfileForClerkUser(clerkId);
+  const nextPatch = { ...patch };
+  if ("timezone" in nextPatch) {
+    nextPatch.timezone = normalizeStoredTimeZone(nextPatch.timezone);
+  }
   await c.updateOne(
     { _id: profile._id },
-    { $set: { ...patch, updatedAt: new Date() } },
+    { $set: { ...nextPatch, updatedAt: new Date() } },
   );
   const next = await c.findOne({ _id: profile._id });
   if (!next) throw new Error("Profile not found");

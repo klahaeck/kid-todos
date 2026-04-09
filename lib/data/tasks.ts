@@ -6,6 +6,24 @@ function col(): Promise<Collection<TaskDoc & Document>> {
   return getDb().then((db) => db.collection("tasks"));
 }
 
+function groupTasksByChild(
+  tasks: WithId<TaskDoc>[],
+): Map<string, WithId<TaskDoc>[]> {
+  const byChild = new Map<string, WithId<TaskDoc>[]>();
+  for (const task of tasks) {
+    const key = task.childId.toHexString();
+    const list = byChild.get(key) ?? [];
+    list.push(task);
+    byChild.set(key, list);
+  }
+
+  for (const [key, list] of byChild) {
+    byChild.set(key, sortTasksByRoutine(list));
+  }
+
+  return byChild;
+}
+
 export function taskToDTO(t: WithId<TaskDoc>): TaskDTO {
   return {
     id: t._id.toHexString(),
@@ -35,6 +53,29 @@ export async function listTasksForChildAdmin(
   const c = await col();
   const arr = await c.find({ childId, active: true }).toArray();
   return sortTasksByRoutine(arr);
+}
+
+export async function listTasksForUserChildren(
+  userId: string,
+  childIds: ObjectId[],
+): Promise<Map<string, WithId<TaskDoc>[]>> {
+  if (childIds.length === 0) return new Map();
+  await ensureIndexes();
+  const c = await col();
+  const arr = await c
+    .find({ childId: { $in: childIds }, userId, active: true })
+    .toArray();
+  return groupTasksByChild(arr);
+}
+
+export async function listTasksForChildIdsAdmin(
+  childIds: ObjectId[],
+): Promise<Map<string, WithId<TaskDoc>[]>> {
+  if (childIds.length === 0) return new Map();
+  await ensureIndexes();
+  const c = await col();
+  const arr = await c.find({ childId: { $in: childIds }, active: true }).toArray();
+  return groupTasksByChild(arr);
 }
 
 function routineOrder(r: Routine): number {

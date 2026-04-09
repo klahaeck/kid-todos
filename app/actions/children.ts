@@ -7,6 +7,7 @@ import type { ActionResult, ChildDTO } from "@/lib/types";
 import {
   childToDTO,
   createChild,
+  getChildForUser,
   listChildrenForUser,
   reorderChildrenForUser,
   updateChildForUser,
@@ -17,6 +18,11 @@ import {
   reorderChildrenSchema,
   updateChildSchema,
 } from "@/lib/schemas";
+import {
+  DEFAULT_CHILD_EVENING_START,
+  DEFAULT_CHILD_MORNING_START,
+} from "@/lib/routine-filter";
+import { timeHmToMinutes } from "@/lib/time-validation";
 
 export async function listChildrenAction(): Promise<ActionResult<ChildDTO[]>> {
   try {
@@ -72,6 +78,30 @@ export async function updateChildAction(
       childId = new ObjectId(id);
     } catch {
       return { ok: false, error: "Invalid child id" };
+    }
+    const existing = await getChildForUser(userId, childId);
+    if (!existing) return { ok: false, error: "Child not found" };
+
+    const nextMorningStart =
+      rest.morningStart === undefined
+        ? existing.morningStart ?? DEFAULT_CHILD_MORNING_START
+        : (rest.morningStart ?? DEFAULT_CHILD_MORNING_START);
+    const nextEveningStart =
+      rest.eveningStart === undefined
+        ? existing.eveningStart ?? DEFAULT_CHILD_EVENING_START
+        : (rest.eveningStart ?? DEFAULT_CHILD_EVENING_START);
+
+    const morningMinutes = timeHmToMinutes(nextMorningStart);
+    const eveningMinutes = timeHmToMinutes(nextEveningStart);
+    if (
+      morningMinutes === null ||
+      eveningMinutes === null ||
+      morningMinutes >= eveningMinutes
+    ) {
+      return {
+        ok: false,
+        error: "Morning start must be earlier than evening start.",
+      };
     }
     const row = await updateChildForUser(userId, childId, rest);
     if (!row) return { ok: false, error: "Child not found" };

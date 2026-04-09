@@ -52,7 +52,10 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("profiles").createIndex({ clerkId: 1 }, { unique: true });
   await db.collection("children").createIndex({ userId: 1, sortOrder: 1 });
   await db.collection("tasks").createIndex({ childId: 1, sortOrder: 1 });
+  await db.collection("tasks").createIndex({ userId: 1, childId: 1, active: 1 });
+  await db.collection("tasks").createIndex({ childId: 1, active: 1 });
   await db.collection("tasks").createIndex({ userId: 1 });
+  await db.collection("completions").createIndex({ userId: 1, date: 1, childId: 1 });
   await db.collection("completions").createIndex({ childId: 1, date: 1 });
   await db
     .collection("completions")
