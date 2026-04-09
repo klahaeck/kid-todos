@@ -28,7 +28,7 @@ export const COLOR_THEME_OPTIONS: {
   {
     id: "classic",
     label: "Classic",
-    description: "StarrySteps default — moon cream & soft lavender, twilight accents",
+    description: "Sticker-stack default — lime, magenta & sun pops + black outlines",
   },
   {
     id: "ocean",

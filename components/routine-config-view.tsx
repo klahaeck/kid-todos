@@ -542,7 +542,7 @@ export function RoutineConfigView({
           Add children and tasks here. Kids use the{" "}
           <Link
             href="/dashboard"
-            className="font-medium text-primary underline"
+            className="font-medium text-brand-grape underline hover:text-brand-grape/85"
           >
             dashboard
           </Link>{" "}
@@ -1039,7 +1039,7 @@ function ConfigChildSection({
               "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
               section.child.hiddenOnDashboard
                 ? "border-border bg-muted text-muted-foreground hover:bg-muted/80"
-                : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
+                : "border-brand-lime/40 bg-brand-lime/15 text-brand-grape hover:bg-brand-lime/25",
             )}
             title={
               section.child.hiddenOnDashboard
@@ -1234,7 +1234,7 @@ function ConfigChildSection({
           done. Colors and fonts are on{" "}
           <Link
             href="/settings"
-            className="font-medium text-primary underline underline-offset-2"
+            className="font-medium text-brand-grape underline underline-offset-2 hover:text-brand-grape/85"
           >
             Settings
           </Link>
@@ -1386,7 +1386,7 @@ function EmojiOptionPicker({
           "rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors",
           selected
             ? "border-border bg-background text-muted-foreground hover:bg-muted"
-            : "border-primary bg-primary/10 text-primary",
+            : "border-brand-lime bg-brand-lime/15 text-brand-grape",
         )}
         aria-label="No emoji"
       >
@@ -1400,7 +1400,7 @@ function EmojiOptionPicker({
           className={cn(
             "h-9 w-9 rounded-full border text-xl transition-colors",
             selected === emoji
-              ? "border-primary bg-primary/10"
+              ? "border-brand-lime bg-brand-lime/15"
               : "border-border bg-background hover:bg-muted",
           )}
           aria-label={`Use ${emoji} emoji`}
@@ -1417,7 +1417,7 @@ function EmojiOptionPicker({
               className={cn(
                 "h-9 w-9 rounded-full border text-xl transition-colors",
                 selected === emoji
-                  ? "border-primary bg-primary/10"
+                  ? "border-brand-lime bg-brand-lime/15"
                   : "border-border bg-background hover:bg-muted",
               )}
               aria-label={`Use ${emoji} emoji`}
@@ -1430,7 +1430,7 @@ function EmojiOptionPicker({
         <button
           type="button"
           onClick={() => onSelect(selected)}
-          className="h-9 w-9 rounded-full border border-primary bg-primary/10 text-xl transition-colors"
+          className="h-9 w-9 rounded-full border border-brand-lime bg-brand-lime/15 text-xl transition-colors"
           aria-label={`Use ${selected} emoji`}
         >
           {selected}

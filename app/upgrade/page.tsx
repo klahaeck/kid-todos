@@ -21,7 +21,7 @@ export default function UpgradePage() {
           custom dashboard colors and fonts.
         </p>
       </div>
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+      <div className="rounded-2xl border-4 border-black bg-card p-4 shadow-brutal sm:p-6">
         <PricingTable
           for="user"
           newSubscriptionRedirectUrl="/routines"

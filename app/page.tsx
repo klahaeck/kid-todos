@@ -14,30 +14,43 @@ function Sparkle({ className }: { className?: string }) {
   );
 }
 
+function Squiggle({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 240 48"
+      fill="none"
+      className={className}
+      aria-hidden
+    >
+      <path
+        d="M4 28c18-22 42-22 60 0s42 22 60 0 42-22 60 0 42 22 56 0"
+        stroke="currentColor"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const brutalCard =
+  "rounded-2xl border-4 border-black p-6 shadow-[6px_6px_0_0_#0a0a0a]";
+
 const highlights = [
   {
-    title: "Routine made easy",
-    text: "Create simple morning and evening checklists your kids can actually follow.",
-    bg: "bg-brand-sky/22",
-    ring: "ring-brand-sky/32",
-    fg: "text-brand-night",
-    sub: "text-brand-twilight/85",
+    title: "Routines, but make it easy",
+    text: "Morning + evening lists kids can tap through — no lecture, just steps.",
+    className: `bg-brand-lime ${brutalCard}`,
   },
   {
-    title: "More calm, less nagging",
-    text: "Kids tap tasks as they finish, so everyone sees progress at a glance.",
-    bg: "bg-brand-mint/26",
-    ring: "ring-brand-mint/38",
-    fg: "text-brand-night",
-    sub: "text-brand-twilight/85",
+    title: "Less nagging, more high-fives",
+    text: "Everyone sees what’s done. You get to cheer instead of repeat yourself.",
+    className: `bg-brand-sun ${brutalCard}`,
   },
   {
-    title: "Built for real families",
-    text: "Manage multiple kids, flexible schedules, and your own timezone — all in one place.",
-    bg: "bg-brand-gold/22",
-    ring: "ring-brand-gold/42",
-    fg: "text-brand-night",
-    sub: "text-brand-twilight/85",
+    title: "Built for real chaos",
+    text: "Multiple kids, weird schedules, your timezone — we’ve got you.",
+    className: `bg-brand-magenta text-white ${brutalCard}`,
   },
 ];
 
@@ -51,118 +64,118 @@ const sampleRoutine = [
 const steps = [
   {
     num: "1",
-    chip: "bg-brand-sky text-white shadow-sm",
-    text: "Add your child and set a morning or evening routine.",
+    chip: "bg-brand-lime text-brand-ink border-2 border-black shadow-brutal-sm",
+    text: "Add your kid + pick morning or evening.",
   },
   {
     num: "2",
-    chip: "bg-brand-mint text-brand-night shadow-sm",
-    text: "Keep tasks short and clear — one action per step.",
+    chip: "border-2 border-black bg-brand-coral text-white shadow-brutal-sm",
+    text: "Keep tasks short — one silly-simple action each.",
   },
   {
     num: "3",
-    chip: "bg-brand-lavender text-brand-twilight shadow-sm",
-    text: "Let your child tap each task as they complete it.",
+    chip: "border-2 border-black bg-brand-grape text-white shadow-brutal-sm",
+    text: "They tap done. You celebrate. Repeat tomorrow.",
   },
 ];
+
+const ctaPrimary =
+  "rounded-2xl border-4 border-black bg-primary px-6 py-3 text-base font-extrabold text-primary-foreground shadow-[6px_6px_0_0_#0a0a0a] transition-[transform,box-shadow] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[4px_4px_0_0_#0a0a0a] active:translate-x-1.5 active:translate-y-1.5 active:shadow-none";
+
+const ctaOutline =
+  "rounded-2xl border-4 border-black bg-card px-6 py-3 text-base font-extrabold text-foreground shadow-[6px_6px_0_0_#0a0a0a] transition-[transform,box-shadow] hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-brand-sun/35 hover:shadow-[4px_4px_0_0_#0a0a0a] active:translate-x-1.5 active:translate-y-1.5 active:shadow-none";
 
 export default function Home() {
   return (
     <div className="overflow-hidden">
-      <section className="relative bg-linear-to-b from-brand-lavender/35 via-brand-moon to-background px-4 pb-16 pt-12 sm:pb-24 sm:pt-16">
+      <section className="relative px-4 pb-16 pt-10 sm:pb-24 sm:pt-14">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.55]"
+          className="pointer-events-none absolute inset-0 opacity-90"
           aria-hidden
           style={{
-            backgroundImage:
-              "linear-gradient(to bottom, color-mix(in oklch, var(--color-brand-twilight) 12%, transparent) 0%, transparent 42%), radial-gradient(circle at 18% 16%, color-mix(in oklch, var(--color-brand-lavender) 38%, transparent) 0%, transparent 48%), radial-gradient(circle at 85% 8%, color-mix(in oklch, var(--color-brand-sky) 28%, transparent) 0%, transparent 40%), radial-gradient(circle at 48% 92%, color-mix(in oklch, var(--color-brand-gold) 20%, transparent) 0%, transparent 46%)",
+            background: `
+              linear-gradient(135deg, color-mix(in oklch, var(--color-brand-lime) 35%, transparent) 0%, transparent 42%),
+              linear-gradient(225deg, color-mix(in oklch, var(--color-brand-magenta) 22%, transparent) 0%, transparent 38%),
+              linear-gradient(12deg, color-mix(in oklch, var(--color-brand-sun) 30%, transparent) 0%, transparent 45%)
+            `,
           }}
         />
-        <Sparkle className="absolute top-10 left-10 size-5 text-brand-gold/90 sm:size-7" />
-        <Sparkle className="absolute top-20 right-14 size-4 text-brand-sky sm:size-6" />
-        <Sparkle className="absolute bottom-16 left-1/4 size-4 text-brand-mint/90" />
-        <Sparkle className="absolute right-1/4 bottom-10 size-5 text-brand-lavender/90 sm:size-7" />
+        <Sparkle className="absolute top-12 left-8 size-6 text-brand-magenta sm:size-8" />
+        <Sparkle className="absolute top-24 right-10 size-5 text-brand-grape sm:size-7" />
+        <Sparkle className="absolute bottom-20 left-[18%] size-5 text-brand-coral" />
+        <Sparkle className="absolute right-[12%] bottom-16 size-7 text-brand-lime sm:size-9" />
+
+        <Squiggle className="mx-auto mt-4 h-10 w-48 text-brand-coral sm:w-64" />
 
         <div className="relative mx-auto max-w-3xl text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-brand-cloud bg-card/90 px-4 py-1.5 text-sm font-semibold text-brand-twilight shadow-sm backdrop-blur-sm">
+          <p className="-rotate-2 inline-flex items-center gap-2 rounded-full border-4 border-black bg-brand-moon px-5 py-2 text-sm font-extrabold tracking-tight text-brand-ink shadow-brutal">
             <span aria-hidden>✨</span>
-            Calm routines, one starry step at a time
+            let’s make routines actually fun??
           </p>
 
-          <h1 className="mt-6 text-5xl font-extrabold tracking-tight sm:text-6xl">
-            <span className="text-brand-twilight">Welcome to</span>
-            <br />
-            <span className="text-brand-sky">Starry</span>
-            <span className="text-brand-twilight">Steps</span>
+          <h1 className="font-heading mt-8 text-4xl font-extrabold tracking-tighter sm:text-6xl sm:leading-[1.05]">
+            <span className="block text-brand-ink">welcome to</span>
+            <span className="mt-1 block">
+              <span className="text-brand-grape">Starry</span>
+              <span className="text-brand-coral">Steps</span>
+            </span>
           </h1>
 
-          <p className="mx-auto mt-5 max-w-xl font-sans text-lg font-medium text-brand-twilight/90 sm:text-xl">
-            Help your kids build independence with gentle morning and evening
-            flows — simple, encouraging, and easy for the whole family.
+          <p className="mx-auto mt-6 max-w-lg font-sans text-lg font-semibold leading-snug text-brand-ink/85 sm:text-xl">
+            Tap-through checklists for kids. Calm structure for grown-ups. Big
+            colors because why not.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <Show when="signed-out">
               <SignUpButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-[1.25rem] bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-[0_6px_16px_rgba(36,59,107,0.15)] transition hover:brightness-[1.03] active:scale-[0.98]"
-                >
-                  Start for free
+                <button type="button" className={ctaPrimary}>
+                  start free →
                 </button>
               </SignUpButton>
               <SignInButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-[1.25rem] border-2 border-brand-twilight/20 bg-card px-6 py-3 text-base font-bold text-brand-twilight transition hover:border-brand-sky/50 hover:bg-brand-moon"
-                >
-                  I already have an account
+                <button type="button" className={ctaOutline}>
+                  i have an account
                 </button>
               </SignInButton>
             </Show>
             <Show when="signed-in">
-              <Link
-                href="/dashboard"
-                className="rounded-[1.25rem] bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-[0_6px_16px_rgba(36,59,107,0.15)] transition hover:brightness-[1.03] active:scale-[0.98]"
-              >
-                Go to dashboard
+              <Link href="/dashboard" className={ctaPrimary}>
+                go to dashboard →
               </Link>
             </Show>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-5xl gap-4 px-4 py-12 sm:grid-cols-3 sm:py-16">
+      <section className="mx-auto grid max-w-5xl gap-5 px-4 py-12 sm:grid-cols-3 sm:py-16">
         {highlights.map((item) => (
-          <article
-            key={item.title}
-            className={`rounded-[1.75rem] ${item.bg} p-6 shadow-sm ring-1 ${item.ring} ring-inset`}
-          >
-            <h2 className={`text-xl font-extrabold ${item.fg}`}>{item.title}</h2>
-            <p
-              className={`mt-2 font-sans text-sm font-medium leading-relaxed ${item.sub}`}
-            >
+          <article key={item.title} className={item.className}>
+            <h2 className="font-heading text-xl font-extrabold tracking-tight text-brand-ink">
+              {item.title}
+            </h2>
+            <p className="mt-3 font-sans text-sm font-semibold leading-relaxed text-brand-ink/85">
               {item.text}
             </p>
           </article>
         ))}
       </section>
 
-      <section className="bg-linear-to-b from-brand-lavender/22 via-brand-moon/75 to-background px-4 py-12 sm:py-16">
-        <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-2 sm:gap-10">
+      <section className="border-y-4 border-black bg-linear-to-b from-brand-lavender/50 via-brand-moon to-background px-4 py-14 sm:py-20">
+        <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-2 sm:gap-12">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-brand-twilight">
-              How it works
+            <h2 className="font-heading text-3xl font-extrabold tracking-tighter text-brand-ink sm:text-4xl">
+              how it works
             </h2>
-            <ol className="mt-6 space-y-5">
+            <ol className="mt-8 space-y-6">
               {steps.map((step) => (
                 <li key={step.num} className="flex items-start gap-4">
                   <span
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full text-lg font-extrabold ${step.chip}`}
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-full text-lg font-extrabold ${step.chip}`}
                   >
                     {step.num}
                   </span>
-                  <p className="pt-1.5 font-sans text-base font-medium text-brand-night/90">
+                  <p className="pt-2 font-sans text-base font-semibold text-brand-ink">
                     {step.text}
                   </p>
                 </li>
@@ -170,21 +183,23 @@ export default function Home() {
             </ol>
           </div>
 
-          <div className="rounded-[1.75rem] border border-brand-cloud bg-card p-6 shadow-[0_8px_30px_rgba(36,59,107,0.08)]">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-sky">
-              Sample morning list
+          <div
+            className={`${brutalCard} rotate-1 bg-card sm:rotate-2`}
+          >
+            <p className="text-xs font-extrabold tracking-widest text-brand-grape uppercase">
+              sample morning list
             </p>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-5 space-y-3">
               {sampleRoutine.map((item) => (
                 <li
                   key={item.task}
-                  className={`rounded-2xl border-2 px-4 py-3 text-base font-bold ${
+                  className={`rounded-xl border-4 px-4 py-3 text-base font-extrabold shadow-brutal-sm ${
                     item.done
-                      ? "border-brand-mint/70 bg-brand-mint/20 text-brand-night"
-                      : "border-brand-sky/40 bg-brand-sky/15 text-brand-twilight"
+                      ? "border-black bg-brand-mint/40 text-brand-ink"
+                      : "border-black bg-brand-sky/25 text-brand-ink"
                   }`}
                 >
-                  {item.done ? "✓ " : ""}
+                  {item.done ? "✓ " : "○ "}
                   {item.task}
                 </li>
               ))}

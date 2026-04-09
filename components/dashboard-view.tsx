@@ -282,7 +282,7 @@ export function DashboardView({
             : "No tasks yet for these routines."}{" "}
           <Link
             href="/routines"
-            className="font-semibold text-primary underline"
+            className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Set up routines
           </Link>
@@ -383,7 +383,7 @@ function KidRoutineBlock({
           screen only.{" "}
           <Link
             href="/upgrade"
-            className="font-semibold text-primary underline"
+            className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Upgrade
           </Link>{" "}
@@ -391,7 +391,7 @@ function KidRoutineBlock({
           here during the evening window (set per child on{" "}
           <Link
             href="/routines"
-            className="font-semibold text-primary underline"
+            className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Routines
           </Link>
@@ -408,7 +408,7 @@ function KidRoutineBlock({
               . Adjust start times under this child on the{" "}
               <Link
                 href="/routines"
-                className="font-semibold text-primary underline"
+                className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
               >
                 Routines
               </Link>{" "}

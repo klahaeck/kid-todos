@@ -8,17 +8,26 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-nunito);
-  /* StarrySteps brand — light UI; bedtime mood comes from gradients + lavender tints */
-  --color-brand-twilight: #243b6b;
-  /* Slightly deeper than brand Sky Blue so UI blues feel active, not disabled */
-  --color-brand-sky: #57a8eb;
-  --color-brand-gold: #f6c85f;
-  --color-brand-moon: #fff6e8;
-  --color-brand-lavender: #c9b8f5;
-  --color-brand-mint: #8ed9c4;
-  --color-brand-coral: #ff8e7a;
-  --color-brand-cloud: #e9eef5;
-  --color-brand-night: #18253f;
+  /* Playful neo-brutalist pops (reference: loud stickers, black outlines) */
+  --color-brand-ink: #0a0a0a;
+  --color-brand-lime: #b8f01a;
+  --color-brand-magenta: #ff2fb9;
+  --color-brand-sun: #ffd53d;
+  --color-brand-grape: #6d28d9;
+  --color-brand-coral: #ff5c33;
+  --color-brand-paper: #f0f0f3;
+  --color-brand-sky: #3db8ff;
+  --color-brand-mint: #5ce5c0;
+  /* Legacy names → map to new palette for existing classnames */
+  --color-brand-twilight: #0a0a0a;
+  --color-brand-gold: #ffd53d;
+  --color-brand-moon: #fffef8;
+  --color-brand-lavender: #e9b8ff;
+  --color-brand-cloud: #d4d4da;
+  --color-brand-night: #0a0a0a;
+  --shadow-brutal: 4px 4px 0 0 #0a0a0a;
+  --shadow-brutal-sm: 3px 3px 0 0 #0a0a0a;
+  --shadow-brutal-lg: 6px 6px 0 0 #0a0a0a;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,53 +68,46 @@
 
 :root {
   color-scheme: light;
-  /* StarrySteps default — light moon-lavender base (bedtime feel without a dark chrome) */
-  --background: oklch(0.972 0.019 95);
-  --foreground: oklch(0.274 0.075 264.5);
-  --card: oklch(0.995 0.012 92);
-  --card-foreground: oklch(0.274 0.075 264.5);
-  --popover: oklch(1 0.008 95);
-  --popover-foreground: oklch(0.274 0.075 264.5);
-  --primary: oklch(0.598 0.138 247);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.935 0.045 302);
-  --secondary-foreground: oklch(0.352 0.108 264.2);
-  --muted: oklch(0.945 0.022 285);
-  --muted-foreground: oklch(0.45 0.06 264);
-  --accent: oklch(0.925 0.038 302);
-  --accent-foreground: oklch(0.352 0.108 264.2);
-  --destructive: oklch(0.718 0.145 25);
-  --border: oklch(0.91 0.025 275);
-  --input: oklch(0.91 0.025 275);
-  --ring: oklch(0.598 0.138 247);
-  --chart-1: oklch(0.598 0.138 247);
-  --chart-2: oklch(0.805 0.087 172);
-  --chart-3: oklch(0.802 0.098 302);
-  --chart-4: oklch(0.842 0.149 86);
-  --chart-5: oklch(0.718 0.145 25);
-  --radius: 1.25rem;
-  --sidebar: oklch(0.97 0.02 95);
-  --sidebar-foreground: oklch(0.274 0.075 264.5);
-  --sidebar-primary: oklch(0.598 0.138 247);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.935 0.045 302);
-  --sidebar-accent-foreground: oklch(0.352 0.108 264.2);
-  --sidebar-border: oklch(0.91 0.025 275);
-  --sidebar-ring: oklch(0.598 0.138 247);
-  --kid-todo-bg: color-mix(in oklch, oklch(0.598 0.138 247) 22%, oklch(1 0 0));
-  --kid-todo-border: color-mix(
-    in oklch,
-    oklch(0.598 0.138 247) 48%,
-    oklch(0.92 0.02 275)
-  );
-  --kid-todo-fg: oklch(0.274 0.075 264.5);
-  --kid-done-bg: color-mix(in oklch, oklch(0.805 0.087 172) 35%, oklch(1 0 0));
-  --kid-done-border: color-mix(
-    in oklch,
-    oklch(0.805 0.087 172) 55%,
-    oklch(0.55 0.06 200)
-  );
-  --kid-done-fg: oklch(0.274 0.075 264.5);
+  /* Default “sticker stack” — electric accents, black ink, chunky radius */
+  --background: oklch(0.955 0.01 280);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.995 0.003 280);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* Primary actions = brand lime; inline links use text-brand-grape in components */
+  --primary: oklch(0.87 0.205 125);
+  --primary-foreground: oklch(0.12 0.03 145);
+  --secondary: oklch(0.92 0.2 330);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.92 0.01 280);
+  --muted-foreground: oklch(0.38 0.02 280);
+  --accent: oklch(0.94 0.16 95);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.62 0.24 25);
+  --border: oklch(0.145 0 0);
+  --input: oklch(0.145 0 0);
+  --ring: oklch(0.65 0.28 330);
+  --chart-1: oklch(0.87 0.205 125);
+  --chart-2: oklch(0.65 0.28 330);
+  --chart-3: oklch(0.94 0.16 95);
+  --chart-4: oklch(0.55 0.24 285);
+  --chart-5: oklch(0.68 0.2 35);
+  --radius: 1rem;
+  --sidebar: oklch(0.96 0.012 280);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.87 0.205 125);
+  --sidebar-primary-foreground: oklch(0.12 0.03 145);
+  --sidebar-accent: oklch(0.92 0.2 330);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.65 0.28 330);
+  --kid-todo-bg: oklch(0.99 0.02 125);
+  --kid-todo-border: oklch(0.145 0 0);
+  --kid-todo-fg: oklch(0.145 0 0);
+  --kid-done-bg: oklch(0.91 0.16 125);
+  --kid-done-border: oklch(0.145 0 0);
+  --kid-done-fg: oklch(0.145 0 0);
 }
 
 /* Playful palettes */
@@ -238,6 +240,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(
+      oklch(0.82 0.02 280) 1.25px,
+      transparent 1.25px
+    );
+    background-size: 22px 22px;
   }
   html {
     @apply font-sans;

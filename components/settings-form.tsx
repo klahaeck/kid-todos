@@ -180,7 +180,7 @@ function SettingsFormFields({
         morning and evening start times on the{" "}
         <Link
           href="/routines"
-          className="font-medium text-primary underline underline-offset-2"
+          className="font-medium text-brand-grape underline underline-offset-2 hover:text-brand-grape/85"
         >
           Routines
         </Link>{" "}
