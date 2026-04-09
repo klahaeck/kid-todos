@@ -5,6 +5,7 @@ import { requireAdminUser } from "@/lib/authz";
 import type { ActionResult, AdminOverviewDTO, ChildDTO, TaskDTO } from "@/lib/types";
 import { buildAdminOverview, adminDeleteChild } from "@/lib/data/admin";
 import { createChild, childToDTO } from "@/lib/data/children";
+import { ensureProfileForClerkUser } from "@/lib/data/profile";
 import {
   createTask,
   taskToDTO,
@@ -39,8 +40,10 @@ export async function adminCreateChildAction(
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
     }
-    const row = await createChild(ownerClerkId.trim(), parsed.data.name);
-    return { ok: true, data: childToDTO(row) };
+    const ownerId = ownerClerkId.trim();
+    const profile = await ensureProfileForClerkUser(ownerId);
+    const row = await createChild(ownerId, parsed.data.name);
+    return { ok: true, data: childToDTO(row, profile.completedTaskIcon) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };

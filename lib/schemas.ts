@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COLOR_THEME_IDS } from "@/lib/color-themes";
+import { COMPLETED_TASK_ICON_IDS } from "@/lib/completed-task-icon-options";
 import { DASHBOARD_FONT_IDS } from "@/lib/dashboard-font-options";
 import { isValidIanaTimeZone, isValidTimeHm } from "@/lib/time-validation";
 
@@ -19,6 +20,7 @@ export const updateChildSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(120).optional(),
   emoji: z.string().trim().max(16).nullable().optional(),
+  completedTaskIcon: z.enum(COMPLETED_TASK_ICON_IDS).optional(),
   hiddenOnDashboard: z.boolean().optional(),
   morningStart: timeHmSchema.nullable().optional(),
   eveningStart: timeHmSchema.nullable().optional(),

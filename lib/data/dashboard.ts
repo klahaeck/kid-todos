@@ -29,7 +29,7 @@ export async function buildDashboardForUser(
     const tasks = tasksByChild.get(ch._id.toHexString()) ?? [];
     const done = byChild.get(ch._id.toHexString()) ?? new Set();
     sections.push({
-      child: childToDTO(ch),
+      child: childToDTO(ch, profile.completedTaskIcon),
       tasks: tasks.map(taskToDTO),
       completedTaskIds: [...done],
     });

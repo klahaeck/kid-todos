@@ -5,12 +5,17 @@ import {
   DEFAULT_DASHBOARD_FONT,
   normalizeDashboardFont,
 } from "@/lib/dashboard-font-options";
+import {
+  DEFAULT_COMPLETED_TASK_ICON,
+  normalizeCompletedTaskIcon,
+} from "@/lib/completed-task-icon-options";
 import type { ProfileDoc, ProfileDTO } from "@/lib/types";
 import { normalizeStoredTimeZone } from "@/lib/time-validation";
 
 const DEFAULTS = {
   colorTheme: DEFAULT_COLOR_THEME,
   dashboardFont: DEFAULT_DASHBOARD_FONT,
+  completedTaskIcon: DEFAULT_COMPLETED_TASK_ICON,
   /** Empty until the user saves a zone from settings (UI defaults to device TZ). */
   timezone: "",
 };
@@ -25,6 +30,7 @@ export function profileToDTO(p: WithId<ProfileDoc>): ProfileDTO {
     clerkId: p.clerkId,
     colorTheme: normalizeColorTheme(p.colorTheme),
     dashboardFont: normalizeDashboardFont(p.dashboardFont),
+    completedTaskIcon: normalizeCompletedTaskIcon(p.completedTaskIcon),
     timezone: normalizeStoredTimeZone(p.timezone),
   };
 }
@@ -43,6 +49,7 @@ export async function ensureProfileForClerkUser(
         clerkId,
         colorTheme: DEFAULTS.colorTheme,
         dashboardFont: DEFAULTS.dashboardFont,
+        completedTaskIcon: DEFAULTS.completedTaskIcon,
         timezone: DEFAULTS.timezone,
         createdAt: now,
         updatedAt: now,

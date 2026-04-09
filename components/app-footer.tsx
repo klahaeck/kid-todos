@@ -4,11 +4,11 @@ export function AppFooter() {
   return (
     <footer
       data-app-chrome="footer"
-      className="border-t border-border bg-background px-4 py-6"
+      className="border-t border-border/80 bg-background px-4 py-8"
     >
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Starry Steps
+        <p className="font-sans text-sm text-muted-foreground">
+          &copy; {new Date().getFullYear()} StarrySteps
         </p>
         <nav className="flex gap-4">
           <Link

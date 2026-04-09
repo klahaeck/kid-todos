@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PricingTable } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
-  title: "Upgrade | Starry Steps",
+  title: "Upgrade | StarrySteps",
   description: "Choose a plan and subscribe with Clerk Billing",
 };
 

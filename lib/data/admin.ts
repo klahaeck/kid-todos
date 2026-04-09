@@ -63,7 +63,7 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
       const tasks = tasksByChild.get(ch._id.toHexString()) ?? [];
       const done = byChild.get(ch._id.toHexString()) ?? new Set();
       sections.push({
-        child: childToDTO(ch),
+        child: childToDTO(ch, profileDoc?.completedTaskIcon),
         tasks: tasks.map(taskToDTO),
         completedTaskIds: [...done],
       });

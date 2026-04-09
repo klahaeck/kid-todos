@@ -1,5 +1,5 @@
 {
-  "name": "Starry Steps",
+  "name": "StarrySteps",
   "short_name": "StarrySteps",
   "icons": [
     {
@@ -15,7 +15,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#f4effa",
+  "background_color": "#fff6e8",
   "display": "standalone"
 }

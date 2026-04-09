@@ -1,17 +1,29 @@
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
+import {
+  normalizeCompletedTaskIcon,
+} from "@/lib/completed-task-icon-options";
 import type { ChildDoc, ChildDTO } from "@/lib/types";
 
 function col(): Promise<Collection<ChildDoc & Document>> {
   return getDb().then((db) => db.collection("children"));
 }
 
-export function childToDTO(c: WithId<ChildDoc>): ChildDTO {
+/**
+ * @param profileCompletedTaskIconFallback — legacy account-level setting when the child doc has no field
+ */
+export function childToDTO(
+  c: WithId<ChildDoc>,
+  profileCompletedTaskIconFallback?: string | null,
+): ChildDTO {
+  const raw =
+    c.completedTaskIcon ?? profileCompletedTaskIconFallback ?? undefined;
   return {
     id: c._id.toHexString(),
     userId: c.userId,
     name: c.name,
     emoji: c.emoji ?? null,
+    completedTaskIcon: normalizeCompletedTaskIcon(raw),
     sortOrder: c.sortOrder,
     hiddenOnDashboard: c.hiddenOnDashboard === true,
     morningStart: c.morningStart,
@@ -73,6 +85,7 @@ export async function updateChildForUser(
   patch: Partial<{
     name: string;
     emoji: string | null;
+    completedTaskIcon: string | null;
     hiddenOnDashboard: boolean;
     morningStart: string | null;
     morningEnd: string | null;

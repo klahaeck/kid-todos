@@ -28,7 +28,7 @@ export const COLOR_THEME_OPTIONS: {
   {
     id: "classic",
     label: "Classic",
-    description: "Clean neutral grays and white",
+    description: "StarrySteps default — moon cream & soft lavender, twilight accents",
   },
   {
     id: "ocean",

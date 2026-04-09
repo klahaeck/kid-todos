@@ -1,4 +1,5 @@
 import type { ColorThemeId } from "@/lib/color-themes";
+import type { CompletedTaskIconId } from "@/lib/completed-task-icon-options";
 import type { DashboardFontId } from "@/lib/dashboard-font-options";
 
 export type Routine = "morning" | "evening";
@@ -10,6 +11,8 @@ export type ProfileDoc = {
   colorTheme?: string;
   /** Dashboard font id; omit on legacy docs → treated as geist */
   dashboardFont?: string;
+  /** Legacy account-level done icon; child docs override via `completedTaskIcon` */
+  completedTaskIcon?: string;
   timezone: string;
   /** @deprecated Legacy routine windows; ignored by the app */
   morningStart?: string;
@@ -25,6 +28,8 @@ export type ChildDoc = {
   userId: string;
   name: string;
   emoji?: string | null;
+  /** Done-marker on dashboard tasks; omit → use profile fallback or default check */
+  completedTaskIcon?: string | null;
   sortOrder: number;
   hiddenOnDashboard?: boolean;
   morningStart: string | null;
@@ -64,6 +69,7 @@ export type ProfileDTO = {
   clerkId: string;
   colorTheme: ColorThemeId;
   dashboardFont: DashboardFontId;
+  completedTaskIcon: CompletedTaskIconId;
   timezone: string;
 };
 
@@ -72,6 +78,7 @@ export type ChildDTO = {
   userId: string;
   name: string;
   emoji: string | null;
+  completedTaskIcon: CompletedTaskIconId;
   sortOrder: number;
   hiddenOnDashboard: boolean;
   morningStart: string | null;

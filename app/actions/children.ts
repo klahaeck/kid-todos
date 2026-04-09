@@ -12,6 +12,7 @@ import {
   reorderChildrenForUser,
   updateChildForUser,
 } from "@/lib/data/children";
+import { ensureProfileForClerkUser } from "@/lib/data/profile";
 import { deleteChildCascade } from "@/lib/data/dashboard";
 import {
   createChildSchema,
@@ -27,8 +28,14 @@ import { timeHmToMinutes } from "@/lib/time-validation";
 export async function listChildrenAction(): Promise<ActionResult<ChildDTO[]>> {
   try {
     const userId = await requireUserId();
-    const rows = await listChildrenForUser(userId);
-    return { ok: true, data: rows.map(childToDTO) };
+    const [profile, rows] = await Promise.all([
+      ensureProfileForClerkUser(userId),
+      listChildrenForUser(userId),
+    ]);
+    return {
+      ok: true,
+      data: rows.map((ch) => childToDTO(ch, profile.completedTaskIcon)),
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };
@@ -55,8 +62,9 @@ export async function createChildAction(
         };
       }
     }
+    const profile = await ensureProfileForClerkUser(userId);
     const row = await createChild(userId, parsed.data.name, parsed.data.emoji);
-    return { ok: true, data: childToDTO(row) };
+    return { ok: true, data: childToDTO(row, profile.completedTaskIcon) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };
@@ -105,7 +113,8 @@ export async function updateChildAction(
     }
     const row = await updateChildForUser(userId, childId, rest);
     if (!row) return { ok: false, error: "Child not found" };
-    return { ok: true, data: childToDTO(row) };
+    const profile = await ensureProfileForClerkUser(userId);
+    return { ok: true, data: childToDTO(row, profile.completedTaskIcon) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };

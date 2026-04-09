@@ -24,7 +24,9 @@ import {
   routinesVisibleForKidNow,
 } from "@/lib/routine-filter";
 import { useConfetti } from "@/components/confetti-provider";
+import { CompletedTaskIconGraphic } from "@/components/completed-task-icon-graphic";
 import { Button } from "@/components/ui/button";
+import type { CompletedTaskIconId } from "@/lib/completed-task-icon-options";
 
 export function DashboardView({
   fontClassName,
@@ -231,7 +233,7 @@ export function DashboardView({
 
   return (
     <div
-      className={`flex w-full flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
+      className={`dashboard-font-scope flex w-full flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
     >
       <Button
         variant="ghost"
@@ -425,6 +427,7 @@ function KidRoutineBlock({
               <TaskTapButton
                 task={task}
                 complete={done.has(task.id)}
+                completedTaskIcon={section.child.completedTaskIcon}
                 disabled={pendingTaskKeys.has(`${section.child.id}:${task.id}`)}
                 onTap={() =>
                   toggleMut.mutate({
@@ -444,11 +447,13 @@ function KidRoutineBlock({
 function TaskTapButton({
   task,
   complete,
+  completedTaskIcon,
   disabled,
   onTap,
 }: {
   task: { id: string; title: string; routine: Routine };
   complete: boolean;
+  completedTaskIcon: CompletedTaskIconId;
   disabled: boolean;
   onTap: () => void;
 }) {
@@ -457,6 +462,7 @@ function TaskTapButton({
     <button
       type="button"
       disabled={disabled}
+      aria-pressed={complete}
       onClick={(e) => {
         e.preventDefault();
         onTap();
@@ -464,20 +470,21 @@ function TaskTapButton({
           addConfetti();
         }
       }}
-      className={`flex h-full min-h-17 w-full items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
+      className={`relative flex h-full min-h-17 w-full items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
         complete
           ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
           : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg) hover:brightness-[0.97]"
       } disabled:opacity-60`}
     >
-      <span className="line-clamp-3 wrap-break-word">
-        {task.title}
-        {/* {complete ? (
-          <span className="ml-1 inline-block align-middle text-xl sm:text-2xl" aria-hidden>
-            ✓
-          </span>
-        ) : null} */}
-      </span>
+      {complete ? (
+        <span
+          className="pointer-events-none absolute -top-2 -left-2 z-1 text-4xl leading-none sm:-top-2 sm:-left-2 sm:text-4xl -rotate-12 animate-in fade-in fade-out-0 duration-200"
+          aria-hidden
+        >
+          <CompletedTaskIconGraphic iconId={completedTaskIcon} />
+        </span>
+      ) : null}
+      <span className="line-clamp-3 wrap-break-word px-1">{task.title}</span>
     </button>
   );
 }

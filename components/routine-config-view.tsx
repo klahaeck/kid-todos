@@ -17,7 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
-import { Eye, EyeOff, GripVertical } from "lucide-react";
+import { Eye, EyeOff, GripVertical, Smile } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { formatTimeHmForLocaleInProfileZone } from "@/lib/format-time-hm";
@@ -39,6 +39,18 @@ import {
   reorderTasksAction,
   updateTaskAction,
 } from "@/app/actions/tasks";
+import { CompletedTaskIconGraphic } from "@/components/completed-task-icon-graphic";
+import {
+  COMPLETED_TASK_ICON_OPTIONS,
+  type CompletedTaskIconId,
+  normalizeCompletedTaskIcon,
+} from "@/lib/completed-task-icon-options";
+
+function completedTaskIconLabel(id: CompletedTaskIconId): string {
+  return (
+    COMPLETED_TASK_ICON_OPTIONS.find((o) => o.id === id)?.label ?? id
+  );
+}
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -253,12 +265,51 @@ export function RoutineConfigView({
   });
 
   const updateChildMut = useMutation({
-    mutationFn: async (vars: { id: string; emoji: string | null; hiddenOnDashboard?: boolean }) => {
+    mutationFn: async (vars: {
+      id: string;
+      emoji?: string | null;
+      hiddenOnDashboard?: boolean;
+      completedTaskIcon?: CompletedTaskIconId;
+    }) => {
       const r = await updateChildAction(vars);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: () => invalidate(),
+    onMutate: async (vars) => {
+      if (vars.completedTaskIcon === undefined) return {};
+      await queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
+      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
+        queryKeys.dashboard,
+      );
+      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) =>
+        current
+          ? {
+              ...current,
+              children: current.children.map((section) =>
+                section.child.id !== vars.id
+                  ? section
+                  : {
+                      ...section,
+                      child: {
+                        ...section.child,
+                        completedTaskIcon: vars.completedTaskIcon!,
+                      },
+                    },
+              ),
+            }
+          : current,
+      );
+      return { previousDashboard };
+    },
+    onError: (_err, vars, context) => {
+      const prev = (
+        context as { previousDashboard?: DashboardDTO } | undefined
+      )?.previousDashboard;
+      if (vars.completedTaskIcon !== undefined && prev) {
+        queryClient.setQueryData(queryKeys.dashboard, prev);
+      }
+    },
+    onSettled: () => invalidate(),
   });
 
   const updateChildTimesMut = useMutation({
@@ -741,7 +792,12 @@ type ConfigChildSectionProps = {
   delChildMut: { mutate: (id: string) => void };
   updateChildMut: {
     isPending: boolean;
-    mutate: (v: { id: string; emoji: string | null; hiddenOnDashboard?: boolean }) => void;
+    mutate: (v: {
+      id: string;
+      emoji?: string | null;
+      hiddenOnDashboard?: boolean;
+      completedTaskIcon?: CompletedTaskIconId;
+    }) => void;
   };
   updateChildTimesMut: {
     isPending: boolean;
@@ -799,7 +855,7 @@ function SortableConfigChildSection({
     ...attributes,
     ...listeners,
     className:
-      "touch-none cursor-grab rounded-xl border border-border px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing",
+      "touch-none cursor-grab rounded-xl px-1.5 text-muted-foreground active:cursor-grabbing",
   };
 
   return (
@@ -885,6 +941,7 @@ function ConfigChildSection({
   const title = taskDrafts[draftKey] ?? "";
   const routine = routineDrafts[draftKey] ?? "morning";
   const [emojiDraft, setEmojiDraft] = useState(() => section.child.emoji ?? "");
+  const [emojiModalOpen, setEmojiModalOpen] = useState(false);
   const isEmojiSaving =
     updateChildMut.isPending && (section.child.emoji ?? "") !== emojiDraft;
 
@@ -908,16 +965,20 @@ function ConfigChildSection({
 
   function handleEmojiSelect(nextEmoji: string) {
     const normalized = nextEmoji.trim();
+    setEmojiDraft(normalized);
     if ((section.child.emoji ?? "") === normalized) {
-      setEmojiDraft(normalized);
       return;
     }
 
-    setEmojiDraft(normalized);
     updateChildMut.mutate({
       id: section.child.id,
       emoji: normalized || null,
     });
+  }
+
+  function handleEmojiSelectInModal(nextEmoji: string) {
+    handleEmojiSelect(nextEmoji);
+    setEmojiModalOpen(false);
   }
 
   return (
@@ -929,14 +990,40 @@ function ConfigChildSection({
               <GripVertical className="size-5 shrink-0" aria-hidden />
             </button>
           ) : null}
-          <h2 className="flex flex-wrap items-center gap-x-1.5 text-xl font-semibold text-foreground">
-            {section.child.emoji ? (
-              <span className="inline-flex shrink-0 text-3xl leading-none" aria-hidden>
-                {section.child.emoji}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h2 className="flex flex-wrap items-center gap-x-1.5 text-xl font-semibold text-foreground">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!updateChildMut.isPending) {
+                    setEmojiDraft(section.child.emoji ?? "");
+                  }
+                  setEmojiModalOpen(true);
+                }}
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent text-3xl leading-none transition-colors",
+                  "hover:border-border hover:bg-muted/60 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  !section.child.emoji &&
+                    "size-10 border-dashed border-border text-muted-foreground",
+                )}
+                aria-label={`Choose emoji for ${section.child.name}`}
+              >
+                {section.child.emoji ? (
+                  <span className="px-0.5" aria-hidden>
+                    {section.child.emoji}
+                  </span>
+                ) : (
+                  <Smile className="size-7" strokeWidth={1.5} aria-hidden />
+                )}
+              </button>
+              {section.child.name}
+            </h2>
+            {isEmojiSaving ? (
+              <span className="text-xs text-muted-foreground" aria-live="polite">
+                Saving emoji…
               </span>
             ) : null}
-            {section.child.name}
-          </h2>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -983,18 +1070,38 @@ function ConfigChildSection({
           </button>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="flex min-w-[180px] flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Emoji</Label>
-          <EmojiOptionPicker
-            selected={emojiDraft}
-            onSelect={handleEmojiSelect}
-          />
-        </div>
-        {isEmojiSaving ? (
-          <p className="text-xs text-muted-foreground">Saving emoji…</p>
-        ) : null}
-      </div>
+
+      <Dialog.Root open={emojiModalOpen} onOpenChange={setEmojiModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-[opacity,backdrop-filter] duration-150 supports-backdrop-filter:backdrop-blur-sm data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="max-h-[min(90vh,560px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg outline-none">
+              <Dialog.Title className="text-lg font-semibold text-foreground">
+                Emoji for {section.child.name}
+              </Dialog.Title>
+              <Dialog.Description className="sr-only">
+                Pick an emoji to show next to this child&apos;s name, or choose
+                none to hide it.
+              </Dialog.Description>
+              <div className="mt-4">
+                <EmojiOptionPicker
+                  key={`${section.child.id}-${emojiModalOpen}`}
+                  selected={emojiDraft}
+                  onSelect={handleEmojiSelectInModal}
+                />
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Dialog.Close
+                  type="button"
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  Cancel
+                </Dialog.Close>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
@@ -1074,6 +1181,66 @@ function ConfigChildSection({
         </span>
         ).
       </p>
+
+      <div className="mt-4 flex flex-col gap-1">
+        <Label
+          htmlFor={`completed-task-icon-${section.child.id}`}
+          className="text-xs text-muted-foreground"
+        >
+          Done icon on dashboard
+        </Label>
+        <Select
+          value={section.child.completedTaskIcon}
+          onValueChange={(v) => {
+            if (v == null) return;
+            const next = normalizeCompletedTaskIcon(v);
+            if (next !== section.child.completedTaskIcon) {
+              updateChildMut.mutate({
+                id: section.child.id,
+                completedTaskIcon: next,
+              });
+            }
+          }}
+          disabled={updateChildMut.isPending}
+        >
+          <SelectTrigger
+            id={`completed-task-icon-${section.child.id}`}
+            className="h-auto w-full min-w-0 rounded-xl py-2"
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
+              <CompletedTaskIconGraphic
+                iconId={section.child.completedTaskIcon}
+                className="shrink-0 text-base leading-none"
+              />
+              <SelectValue placeholder="Choose an icon">
+                {completedTaskIconLabel(section.child.completedTaskIcon)}
+              </SelectValue>
+            </span>
+          </SelectTrigger>
+          <SelectContent className="max-h-72" alignItemWithTrigger={false}>
+            {COMPLETED_TASK_ICON_OPTIONS.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id} title={opt.description}>
+                <CompletedTaskIconGraphic
+                  iconId={opt.id}
+                  className="text-base"
+                />
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Shown on {section.child.name}&apos;s tasks when they&apos;re marked
+          done. Colors and fonts are on{" "}
+          <Link
+            href="/settings"
+            className="font-medium text-primary underline underline-offset-2"
+          >
+            Settings
+          </Link>
+          .
+        </p>
+      </div>
 
       <div className="mt-4 flex flex-col gap-3">
         {tasks.length === 0 ? (
@@ -1334,7 +1501,7 @@ function SortableRoutineTaskRow({
         type="button"
         aria-label="Drag to reorder"
         title="Drag to reorder"
-        className="touch-none cursor-grab rounded-xl border border-border px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        className="touch-none cursor-grab rounded-xl px-1.5 text-muted-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
