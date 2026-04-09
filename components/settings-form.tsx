@@ -145,6 +145,32 @@ function SettingsFormFields({
     return IANA_TIMEZONES;
   }, [profile.timezone]);
 
+  const colorThemeSelectItems = useMemo(
+    () =>
+      COLOR_THEME_OPTIONS.map((opt) => ({
+        value: opt.id,
+        label: opt.label,
+      })),
+    [],
+  );
+
+  const dashboardFontSelectItems = useMemo(
+    () =>
+      DASHBOARD_FONT_OPTIONS.map((opt) => ({
+        value: opt.id,
+        label: opt.label,
+      })),
+    [],
+  );
+
+  const timezoneSelectItems = useMemo(
+    () => [
+      { value: "", label: "Not set" },
+      ...timezoneOptions.map((tz) => ({ value: tz, label: tz })),
+    ],
+    [timezoneOptions],
+  );
+
   const [timezone, setTimezone] = useState(() =>
     initialTimezone,
   );
@@ -201,6 +227,7 @@ function SettingsFormFields({
           <input type="hidden" name="colorTheme" value={colorTheme} />
           <Select
             value={colorTheme}
+            items={colorThemeSelectItems}
             onValueChange={(v) => setColorTheme((v ?? "classic") as ColorThemeId)}
           >
             <SelectTrigger
@@ -211,7 +238,12 @@ function SettingsFormFields({
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {COLOR_THEME_OPTIONS.map((opt) => (
-                <SelectItem key={opt.id} value={opt.id} title={opt.description}>
+                <SelectItem
+                  key={opt.id}
+                  value={opt.id}
+                  label={opt.label}
+                  title={opt.description}
+                >
                   {opt.label}
                 </SelectItem>
               ))}
@@ -232,6 +264,7 @@ function SettingsFormFields({
           <input type="hidden" name="dashboardFont" value={dashboardFont} />
           <Select
             value={dashboardFont}
+            items={dashboardFontSelectItems}
             onValueChange={(v) =>
               setDashboardFont((v ?? "geist") as DashboardFontId)
             }
@@ -244,7 +277,12 @@ function SettingsFormFields({
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {DASHBOARD_FONT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.id} value={opt.id} title={opt.description}>
+                <SelectItem
+                  key={opt.id}
+                  value={opt.id}
+                  label={opt.label}
+                  title={opt.description}
+                >
                   {opt.label}
                 </SelectItem>
               ))}
@@ -269,6 +307,7 @@ function SettingsFormFields({
           <input type="hidden" name="timezone" value={timezone} />
           <Select
             value={timezone || null}
+            items={timezoneSelectItems}
             onValueChange={(v) => setTimezone(v ?? "")}
           >
             <SelectTrigger
@@ -279,9 +318,11 @@ function SettingsFormFields({
             </SelectTrigger>
             {/* Long lists + alignItemWithTrigger pin the selected row to the trigger, shifting the panel far above it. */}
             <SelectContent className="max-h-72" alignItemWithTrigger={false}>
-              <SelectItem value="">Not set</SelectItem>
+              <SelectItem value="" label="Not set">
+                Not set
+              </SelectItem>
               {timezoneOptions.map((tz) => (
-                <SelectItem key={tz} value={tz}>
+                <SelectItem key={tz} value={tz} label={tz}>
                   {tz}
                 </SelectItem>
               ))}

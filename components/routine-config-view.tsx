@@ -45,12 +45,6 @@ import {
   type CompletedTaskIconId,
   normalizeCompletedTaskIcon,
 } from "@/lib/completed-task-icon-options";
-
-function completedTaskIconLabel(id: CompletedTaskIconId): string {
-  return (
-    COMPLETED_TASK_ICON_OPTIONS.find((o) => o.id === id)?.label ?? id
-  );
-}
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -72,6 +66,11 @@ import {
   resolveRoutineFilter,
   type RoutineTab,
 } from "@/lib/routine-filter";
+
+const ROUTINE_WHEN_SELECT_ITEMS = [
+  { value: "morning" as const, label: "Morning" },
+  { value: "evening" as const, label: "Evening" },
+];
 
 const CHILD_EMOJI_OPTIONS = [
   "😀",
@@ -963,6 +962,32 @@ function ConfigChildSection({
     return m;
   }, [routineTimeOptions, profileTz]);
 
+  const routineTimeSelectItems = useMemo(
+    () =>
+      routineTimeOptions.map((t) => ({
+        value: t,
+        label: routineStartTimeLabels.get(t) ?? t,
+      })),
+    [routineTimeOptions, routineStartTimeLabels],
+  );
+
+  const completedTaskIconSelectItems = useMemo(
+    () =>
+      COMPLETED_TASK_ICON_OPTIONS.map((opt) => ({
+        value: opt.id,
+        label: (
+          <span className="flex min-w-0 items-center gap-2">
+            <CompletedTaskIconGraphic
+              iconId={opt.id}
+              className="shrink-0 text-base leading-none"
+            />
+            {opt.label}
+          </span>
+        ),
+      })),
+    [],
+  );
+
   function handleEmojiSelect(nextEmoji: string) {
     const normalized = nextEmoji.trim();
     setEmojiDraft(normalized);
@@ -1112,6 +1137,7 @@ function ConfigChildSection({
             value={
               section.child.morningStart ?? DEFAULT_CHILD_MORNING_START
             }
+            items={routineTimeSelectItems}
             disabled={updateChildTimesMut.isPending}
             onValueChange={(v) => {
               const next = v ?? DEFAULT_CHILD_MORNING_START;
@@ -1131,7 +1157,11 @@ function ConfigChildSection({
               alignItemWithTrigger={false}
             >
               {routineTimeOptions.map((t) => (
-                <SelectItem key={`m-${t}`} value={t}>
+                <SelectItem
+                  key={`m-${t}`}
+                  value={t}
+                  label={routineStartTimeLabels.get(t) ?? t}
+                >
                   {routineStartTimeLabels.get(t) ?? t}
                 </SelectItem>
               ))}
@@ -1146,6 +1176,7 @@ function ConfigChildSection({
             value={
               section.child.eveningStart ?? DEFAULT_CHILD_EVENING_START
             }
+            items={routineTimeSelectItems}
             disabled={updateChildTimesMut.isPending}
             onValueChange={(v) => {
               const next = v ?? DEFAULT_CHILD_EVENING_START;
@@ -1164,7 +1195,11 @@ function ConfigChildSection({
               alignItemWithTrigger={false}
             >
               {routineTimeOptions.map((t) => (
-                <SelectItem key={`e-${t}`} value={t}>
+                <SelectItem
+                  key={`e-${t}`}
+                  value={t}
+                  label={routineStartTimeLabels.get(t) ?? t}
+                >
                   {routineStartTimeLabels.get(t) ?? t}
                 </SelectItem>
               ))}
@@ -1191,6 +1226,7 @@ function ConfigChildSection({
         </Label>
         <Select
           value={section.child.completedTaskIcon}
+          items={completedTaskIconSelectItems}
           onValueChange={(v) => {
             if (v == null) return;
             const next = normalizeCompletedTaskIcon(v);
@@ -1207,19 +1243,16 @@ function ConfigChildSection({
             id={`completed-task-icon-${section.child.id}`}
             className="h-auto w-full min-w-0 rounded-xl py-2"
           >
-            <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
-              <CompletedTaskIconGraphic
-                iconId={section.child.completedTaskIcon}
-                className="shrink-0 text-base leading-none"
-              />
-              <SelectValue placeholder="Choose an icon">
-                {completedTaskIconLabel(section.child.completedTaskIcon)}
-              </SelectValue>
-            </span>
+            <SelectValue placeholder="Choose an icon" />
           </SelectTrigger>
           <SelectContent className="max-h-72" alignItemWithTrigger={false}>
             {COMPLETED_TASK_ICON_OPTIONS.map((opt) => (
-              <SelectItem key={opt.id} value={opt.id} title={opt.description}>
+              <SelectItem
+                key={opt.id}
+                value={opt.id}
+                label={opt.label}
+                title={opt.description}
+              >
                 <CompletedTaskIconGraphic
                   iconId={opt.id}
                   className="text-base"
@@ -1336,6 +1369,7 @@ function ConfigChildSection({
           <Label className="text-muted-foreground">When</Label>
           <Select
             value={routine}
+            items={ROUTINE_WHEN_SELECT_ITEMS}
             onValueChange={(value) =>
               setRoutineDrafts((d) => ({
                 ...d,
@@ -1347,8 +1381,12 @@ function ConfigChildSection({
               <SelectValue placeholder="Choose when" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="morning">Morning</SelectItem>
-              <SelectItem value="evening">Evening</SelectItem>
+              <SelectItem value="morning" label="Morning">
+                Morning
+              </SelectItem>
+              <SelectItem value="evening" label="Evening">
+                Evening
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

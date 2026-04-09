@@ -319,7 +319,7 @@ function AdminChildBlock({
               [key]: e.target.value as "morning" | "evening",
             }))
           }
-          className="rounded-lg border px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+          className="rounded-lg border-2 border-input bg-card px-2 py-1.5 text-sm text-foreground shadow-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
         >
           <option value="morning">Morning</option>
           <option value="evening">Evening</option>
