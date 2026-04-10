@@ -4,6 +4,8 @@ export const COLOR_THEME_IDS = [
   "ocean",
   "sunshine",
   "berry",
+  "rocket",
+  "tropical",
 ] as const;
 
 export type ColorThemeId = (typeof COLOR_THEME_IDS)[number];
@@ -44,5 +46,15 @@ export const COLOR_THEME_OPTIONS: {
     id: "berry",
     label: "Berry",
     description: "Lavender, pink, and grape soda purples",
+  },
+  {
+    id: "rocket",
+    label: "Rocket",
+    description: "Electric violet, neon cyan, and star-burst yellow",
+  },
+  {
+    id: "tropical",
+    label: "Tropical",
+    description: "Zesty lime, mango punch, and splashy aqua",
   },
 ];

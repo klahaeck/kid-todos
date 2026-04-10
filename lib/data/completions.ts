@@ -1,9 +1,14 @@
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
-import type { CompletionDoc } from "@/lib/types";
+import { slugifyTitle } from "@/lib/slugify";
+import type { CompletionDoc, Routine, TaskCompletionEventDoc } from "@/lib/types";
 
 function col(): Promise<Collection<CompletionDoc & Document>> {
   return getDb().then((db) => db.collection("completions"));
+}
+
+function eventsCol(): Promise<Collection<TaskCompletionEventDoc & Document>> {
+  return getDb().then((db) => db.collection("task_completion_events"));
 }
 
 type CompletionsByUserDateSpec = {
@@ -83,6 +88,7 @@ export async function toggleCompletion(
   childId: ObjectId,
   taskId: ObjectId,
   date: string,
+  taskMeta: { title: string; routine: Routine },
 ): Promise<{ completed: boolean }> {
   await ensureIndexes();
   const c = await col();
@@ -92,16 +98,36 @@ export async function toggleCompletion(
       throw new Error("Forbidden");
     }
     await c.deleteOne({ _id: existing._id });
+    const ev = await eventsCol();
+    await ev.findOneAndDelete(
+      { userId, childId, taskId, calendarDate: date },
+      { sort: { completedAt: -1 } },
+    );
     return { completed: false };
   }
   const now = new Date();
+  const titleSlug = slugifyTitle(taskMeta.title);
   await c.insertOne({
     childId,
     taskId,
     userId,
     date,
     completedAt: now,
+    routine: taskMeta.routine,
+    titleSlug,
   } as CompletionDoc & Document);
+
+  const ev = await eventsCol();
+  await ev.insertOne({
+    userId,
+    childId,
+    taskId,
+    titleSlug,
+    routine: taskMeta.routine,
+    calendarDate: date,
+    completedAt: now,
+  } as TaskCompletionEventDoc & Document);
+
   return { completed: true };
 }
 
@@ -109,4 +135,14 @@ export async function deleteCompletionsForChild(childId: ObjectId): Promise<void
   await ensureIndexes();
   const c = await col();
   await c.deleteMany({ childId });
+  const ev = await eventsCol();
+  await ev.deleteMany({ childId });
+}
+
+export async function deleteCompletionsForTask(taskId: ObjectId): Promise<void> {
+  await ensureIndexes();
+  const c = await col();
+  await c.deleteMany({ taskId });
+  const ev = await eventsCol();
+  await ev.deleteMany({ taskId });
 }

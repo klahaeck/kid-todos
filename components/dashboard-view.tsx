@@ -1,5 +1,6 @@
 "use client";
 
+import { animate, stagger } from "animejs";
 import Link from "next/link";
 import { Maximize2, Minimize2 } from "lucide-react";
 import {
@@ -8,9 +9,17 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { getDashboardData } from "@/app/actions/dashboard";
 import { toggleTaskCompletionAction } from "@/app/actions/completions";
+import { calendarDateInTimezone } from "@/lib/date";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   ChildSectionDTO,
@@ -27,6 +36,124 @@ import { useConfetti } from "@/components/confetti-provider";
 import { CompletedTaskIconGraphic } from "@/components/completed-task-icon-graphic";
 import { Button } from "@/components/ui/button";
 import type { CompletedTaskIconId } from "@/lib/completed-task-icon-options";
+import { cn } from "@/lib/utils";
+
+function splitGraphemes(text: string): string[] {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    return [
+      ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+        text,
+      ),
+    ].map((s) => s.segment);
+  }
+  return [...text];
+}
+
+/** Words vs whitespace runs — line breaks occur between runs, not inside words. */
+function splitWordsAndSpace(text: string): string[] {
+  return text.split(/(\s+)/).filter((p) => p.length > 0);
+}
+
+function LetterCelebrationHeadline({
+  text,
+  className,
+  style,
+  exiting,
+  onExitComplete,
+}: {
+  text: string;
+  className?: string;
+  style?: CSSProperties;
+  exiting: boolean;
+  onExitComplete: () => void;
+}) {
+  const containerRef = useRef<HTMLParagraphElement>(null);
+  const wordParts = useMemo(() => splitWordsAndSpace(text), [text]);
+  const onExitCompleteRef = useRef(onExitComplete);
+
+  useEffect(() => {
+    onExitCompleteRef.current = onExitComplete;
+  }, [onExitComplete]);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const targets = root.querySelectorAll<HTMLElement>("[data-celebration-char]");
+    if (!targets.length) return;
+
+    const animation = animate(targets, {
+      opacity: [0, 1],
+      y: ["0.2em", "0"],
+      duration: 480,
+      delay: stagger(36, { ease: "outQuad" }),
+      ease: "outCubic",
+    });
+
+    return () => {
+      animation.revert();
+    };
+  }, [text]);
+
+  useEffect(() => {
+    if (!exiting) return;
+    const root = containerRef.current;
+    if (!root) return;
+    const targets = root.querySelectorAll<HTMLElement>("[data-celebration-char]");
+    if (!targets.length) {
+      queueMicrotask(() => {
+        onExitCompleteRef.current();
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const animation = animate(targets, {
+      opacity: [1, 0],
+      y: [0, "-0.2em"],
+      duration: 380,
+      delay: stagger(30, { from: "last", ease: "inQuad" }),
+      ease: "inCubic",
+    });
+
+    void animation.then(() => {
+      if (!cancelled) {
+        onExitCompleteRef.current();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      animation.revert();
+    };
+  }, [exiting]);
+
+  return (
+    <p ref={containerRef} className={className} style={style}>
+      {wordParts.map((part, wordIndex) => {
+        if (/^\s+$/.test(part)) {
+          return part;
+        }
+        const graphemes = splitGraphemes(part);
+        return (
+          <span
+            key={`w-${wordIndex}-${part}`}
+            className="inline-block whitespace-nowrap"
+          >
+            {graphemes.map((segment, i) => (
+              <span
+                key={`${wordIndex}-${i}-${segment}`}
+                data-celebration-char
+                className="inline-block opacity-0 will-change-[opacity,transform]"
+              >
+                {segment}
+              </span>
+            ))}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
 
 export function DashboardView({
   fontClassName,
@@ -85,6 +212,16 @@ export function DashboardView({
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+
+  useEffect(() => {
+    const dto = dashboardQuery.data;
+    if (!dto) return;
+    const tz = dto.profile.timezone?.trim() || "UTC";
+    const clientToday = calendarDateInTimezone(tz, new Date(nowMs));
+    if (clientToday !== dto.today) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    }
+  }, [nowMs, dashboardQuery.data, queryClient]);
 
   const updateOptimisticCompletion = (
     current: DashboardDTO | undefined,
@@ -337,6 +474,19 @@ function KidRoutineBlock({
     mutate: (v: { childId: string; taskId: string }) => void;
   };
 }) {
+  const { addFireworksCelebration } = useConfetti();
+  const prevAllTasksCompleteRef = useRef<boolean | undefined>(undefined);
+  const [congratsVisible, setCongratsVisible] = useState(false);
+  const [congratsExiting, setCongratsExiting] = useState(false);
+  const congratsHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const handleCelebrationExitComplete = useCallback(() => {
+    setCongratsVisible(false);
+    setCongratsExiting(false);
+  }, []);
+
   const at = useMemo(() => new Date(nowMs), [nowMs]);
 
   const naturalRoutines = useMemo(
@@ -361,11 +511,49 @@ function KidRoutineBlock({
 
   const windowsLine = routineWindowsSummary(profile, section.child);
   const done = new Set(section.completedTaskIds);
+  const allTasksComplete =
+    tasks.length > 0 && tasks.every((t) => done.has(t.id));
+  const incompleteTaskCount = tasks.filter((t) => !done.has(t.id)).length;
+
+  const celebrationText = useMemo(
+    () => `Good job ${section.child.name}!`,
+    [section.child.name],
+  );
+
+  useEffect(() => {
+    if (prevAllTasksCompleteRef.current === undefined) {
+      prevAllTasksCompleteRef.current = allTasksComplete;
+      return;
+    }
+    if (allTasksComplete && !prevAllTasksCompleteRef.current) {
+      addFireworksCelebration();
+      queueMicrotask(() => {
+        setCongratsExiting(false);
+        setCongratsVisible(true);
+        if (congratsHideTimeoutRef.current !== null) {
+          clearTimeout(congratsHideTimeoutRef.current);
+        }
+        congratsHideTimeoutRef.current = setTimeout(() => {
+          setCongratsExiting(true);
+          congratsHideTimeoutRef.current = null;
+        }, 5500);
+      });
+    }
+    prevAllTasksCompleteRef.current = allTasksComplete;
+  }, [allTasksComplete, addFireworksCelebration]);
+
+  useEffect(() => {
+    return () => {
+      if (congratsHideTimeoutRef.current !== null) {
+        clearTimeout(congratsHideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (section.tasks.length === 0) return null;
 
   return (
-    <section className="flex w-full flex-col gap-4 rounded-3xl border-2 border-border bg-card/90 p-5 text-card-foreground shadow-sm">
+    <section className="relative flex w-full flex-col gap-4 rounded-3xl border-2 border-border bg-card/90 p-5 text-card-foreground shadow-sm">
       <div className="text-center sm:text-left">
         <h2 className="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold text-foreground">
           {section.child.emoji ? (
@@ -429,6 +617,9 @@ function KidRoutineBlock({
                 complete={done.has(task.id)}
                 completedTaskIcon={section.child.completedTaskIcon}
                 disabled={pendingTaskKeys.has(`${section.child.id}:${task.id}`)}
+                skipConfetti={
+                  !done.has(task.id) && incompleteTaskCount === 1
+                }
                 onTap={() =>
                   toggleMut.mutate({
                     childId: section.child.id,
@@ -440,6 +631,40 @@ function KidRoutineBlock({
           ))}
         </ul>
       ) : null}
+
+      {congratsVisible ? (
+        <>
+          {/*
+            Below fireworks (z-index 80 in confetti-provider) and headline (z-200)
+            so particles and text stay visible on top. Scrim uses pointer-events-auto
+            so taps don’t reach the routine buttons underneath.
+          */}
+          <div
+            className={cn(
+              "fixed inset-0 z-65 bg-linear-to-b from-[#1a2744]/88 via-[#243B6B]/82 to-[#18253F]/90 backdrop-blur-[2px] transition-opacity duration-500 ease-out",
+              congratsExiting ? "opacity-0" : "opacity-100",
+            )}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none fixed inset-0 z-200 flex items-center justify-center px-6"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <LetterCelebrationHeadline
+              text={celebrationText}
+              exiting={congratsExiting}
+              onExitComplete={handleCelebrationExitComplete}
+              className="max-w-[min(92vw,40rem)] text-balance bg-linear-to-br from-[#fffef5] via-[#ffe9a8] via-35% from-10% to-[#d9a21a] bg-clip-text text-center font-bold text-transparent animate-in zoom-in-95 fade-in duration-500 text-5xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl"
+              style={{
+                fontFamily: "var(--font-heading, inherit)",
+                filter:
+                  "drop-shadow(0 1px 1.5px rgba(24, 37, 63, 0.98)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.92)) drop-shadow(0 5px 18px rgba(0, 0, 0, 0.82)) drop-shadow(0 10px 40px rgba(0, 0, 0, 0.65))",
+              }}
+            />
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
@@ -449,12 +674,15 @@ function TaskTapButton({
   complete,
   completedTaskIcon,
   disabled,
+  skipConfetti,
   onTap,
 }: {
   task: { id: string; title: string; routine: Routine };
   complete: boolean;
   completedTaskIcon: CompletedTaskIconId;
   disabled: boolean;
+  /** When this tap finishes the child's visible checklist, fireworks handle celebration */
+  skipConfetti?: boolean;
   onTap: () => void;
 }) {
   const { addConfetti } = useConfetti();
@@ -466,7 +694,7 @@ function TaskTapButton({
       onClick={(e) => {
         e.preventDefault();
         onTap();
-        if (!complete) {
+        if (!complete && !skipConfetti) {
           addConfetti();
         }
       }}

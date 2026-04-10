@@ -59,7 +59,25 @@ export type CompletionDoc = {
   childId: import("mongodb").ObjectId;
   taskId: import("mongodb").ObjectId;
   userId: string;
+  /** Calendar date YYYY-MM-DD in the user’s timezone when completed */
   date: string;
+  /** UTC instant when the task was marked done for `date` */
+  completedAt: Date;
+  /** Snapshot when recorded; omit on legacy docs */
+  routine?: Routine;
+  /** Slugified task title at completion time; omit on legacy docs */
+  titleSlug?: string;
+};
+
+/** Append-only log each time a task is marked complete (toggle on). */
+export type TaskCompletionEventDoc = {
+  _id: import("mongodb").ObjectId;
+  userId: string;
+  childId: import("mongodb").ObjectId;
+  taskId: import("mongodb").ObjectId;
+  titleSlug: string;
+  routine: Routine;
+  calendarDate: string;
   completedAt: Date;
 };
 

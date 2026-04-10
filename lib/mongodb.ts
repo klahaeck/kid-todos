@@ -60,5 +60,15 @@ export async function ensureIndexes(): Promise<void> {
   await db
     .collection("completions")
     .createIndex({ taskId: 1, date: 1 }, { unique: true });
+  await db
+    .collection("task_completion_events")
+    .createIndex({ userId: 1, completedAt: -1 });
+  await db
+    .collection("task_completion_events")
+    .createIndex({ userId: 1, calendarDate: -1 });
+  await db
+    .collection("task_completion_events")
+    .createIndex({ childId: 1, completedAt: -1 });
+  await db.collection("task_completion_events").createIndex({ taskId: 1 });
   indexesEnsured = true;
 }

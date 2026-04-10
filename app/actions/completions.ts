@@ -33,7 +33,10 @@ export async function toggleTaskCompletionAction(
     }
     const profile = await ensureProfileForClerkUser(userId);
     const date = todayInTimezone(profile.timezone);
-    const result = await toggleCompletion(userId, childId, taskId, date);
+    const result = await toggleCompletion(userId, childId, taskId, date, {
+      title: task.title,
+      routine: task.routine,
+    });
     return { ok: true, data: result };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

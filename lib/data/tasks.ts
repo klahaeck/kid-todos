@@ -155,7 +155,10 @@ export async function deleteTaskForUser(
   await ensureIndexes();
   const c = await col();
   const r = await c.deleteOne({ _id: taskId, userId });
-  return r.deletedCount === 1;
+  if (r.deletedCount !== 1) return false;
+  const { deleteCompletionsForTask } = await import("@/lib/data/completions");
+  await deleteCompletionsForTask(taskId);
+  return true;
 }
 
 export async function reorderTasksForUser(
