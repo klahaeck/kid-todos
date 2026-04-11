@@ -142,3 +142,59 @@ export type AdminOverviewDTO = {
 export type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+/** Household collaborator (not the billing primary). */
+export type HouseholdMemberDoc = {
+  _id: import("mongodb").ObjectId;
+  ownerClerkId: string;
+  memberClerkId: string;
+  joinedAt: Date;
+};
+
+export type HouseholdInviteDoc = {
+  _id: import("mongodb").ObjectId;
+  token: string;
+  ownerClerkId: string;
+  emailNormalized: string;
+  createdAt: Date;
+  expiresAt: Date;
+  revokedAt?: Date | null;
+  redeemedAt?: Date | null;
+  /** Set when Resend fails so ops can retry */
+  emailFailedAt?: Date | null;
+};
+
+export type HouseholdMemberDTO = {
+  memberClerkId: string;
+  joinedAt: string;
+};
+
+export type HouseholdInvitePendingDTO = {
+  id: string;
+  emailNormalized: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type HouseholdOverviewDTO = {
+  role: "primary" | "member";
+  /** Set when role is member */
+  ownerClerkId?: string;
+  members: HouseholdMemberDTO[];
+  pendingInvites: HouseholdInvitePendingDTO[];
+};
+
+/**
+ * Snapshot of Clerk `auth().has()` for the billing primary, so household
+ * members can read the same entitlements without a Clerk session for the owner.
+ */
+export type HouseholdEntitlementsDoc = {
+  _id: import("mongodb").ObjectId;
+  ownerClerkId: string;
+  isMonthlySubscriber: boolean;
+  hasMultipleChildrenFeature: boolean;
+  hasAllRoutinesFeature: boolean;
+  hasAllThemesFeature: boolean;
+  hasMultipleUsersFeature: boolean;
+  updatedAt: Date;
+};

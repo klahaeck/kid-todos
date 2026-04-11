@@ -1,7 +1,7 @@
 "use server";
 
 import { ObjectId } from "mongodb";
-import { requireUserId } from "@/lib/authz";
+import { resolveHouseholdContext } from "@/lib/authz";
 import { hasMultipleChildrenFeature } from "@/lib/subscription";
 import type { ActionResult, ChildDTO } from "@/lib/types";
 import {
@@ -27,10 +27,10 @@ import { timeHmToMinutes } from "@/lib/time-validation";
 
 export async function listChildrenAction(): Promise<ActionResult<ChildDTO[]>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const [profile, rows] = await Promise.all([
-      ensureProfileForClerkUser(userId),
-      listChildrenForUser(userId),
+      ensureProfileForClerkUser(dataOwnerId),
+      listChildrenForUser(dataOwnerId),
     ]);
     return {
       ok: true,
@@ -46,12 +46,12 @@ export async function createChildAction(
   raw: unknown,
 ): Promise<ActionResult<ChildDTO>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = createChildSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
     }
-    const existingChildren = await listChildrenForUser(userId);
+    const existingChildren = await listChildrenForUser(dataOwnerId);
     if (existingChildren.length >= 1) {
       const canHaveMultipleChildren = await hasMultipleChildrenFeature();
       if (!canHaveMultipleChildren) {
@@ -62,8 +62,12 @@ export async function createChildAction(
         };
       }
     }
-    const profile = await ensureProfileForClerkUser(userId);
-    const row = await createChild(userId, parsed.data.name, parsed.data.emoji);
+    const profile = await ensureProfileForClerkUser(dataOwnerId);
+    const row = await createChild(
+      dataOwnerId,
+      parsed.data.name,
+      parsed.data.emoji,
+    );
     return { ok: true, data: childToDTO(row, profile.completedTaskIcon) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -75,7 +79,7 @@ export async function updateChildAction(
   raw: unknown,
 ): Promise<ActionResult<ChildDTO>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = updateChildSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
@@ -87,7 +91,7 @@ export async function updateChildAction(
     } catch {
       return { ok: false, error: "Invalid child id" };
     }
-    const existing = await getChildForUser(userId, childId);
+    const existing = await getChildForUser(dataOwnerId, childId);
     if (!existing) return { ok: false, error: "Child not found" };
 
     const nextMorningStart =
@@ -111,9 +115,9 @@ export async function updateChildAction(
         error: "Morning start must be earlier than evening start.",
       };
     }
-    const row = await updateChildForUser(userId, childId, rest);
+    const row = await updateChildForUser(dataOwnerId, childId, rest);
     if (!row) return { ok: false, error: "Child not found" };
-    const profile = await ensureProfileForClerkUser(userId);
+    const profile = await ensureProfileForClerkUser(dataOwnerId);
     return { ok: true, data: childToDTO(row, profile.completedTaskIcon) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -125,14 +129,14 @@ export async function deleteChildAction(
   childIdStr: string,
 ): Promise<ActionResult<{ deleted: boolean }>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     let childId: ObjectId;
     try {
       childId = new ObjectId(childIdStr);
     } catch {
       return { ok: false, error: "Invalid child id" };
     }
-    const ok = await deleteChildCascade(userId, childId);
+    const ok = await deleteChildCascade(dataOwnerId, childId);
     return { ok: true, data: { deleted: ok } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -144,12 +148,12 @@ export async function reorderChildrenAction(
   raw: unknown,
 ): Promise<ActionResult<{ ok: true }>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = reorderChildrenSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
     }
-    await reorderChildrenForUser(userId, parsed.data.orderedIds);
+    await reorderChildrenForUser(dataOwnerId, parsed.data.orderedIds);
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

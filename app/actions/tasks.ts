@@ -1,7 +1,7 @@
 "use server";
 
 import { ObjectId } from "mongodb";
-import { requireUserId } from "@/lib/authz";
+import { resolveHouseholdContext } from "@/lib/authz";
 import type { ActionResult, Routine, TaskDTO } from "@/lib/types";
 import {
   createTask,
@@ -21,7 +21,7 @@ export async function createTaskAction(
   raw: unknown,
 ): Promise<ActionResult<TaskDTO>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = createTaskSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
@@ -32,10 +32,10 @@ export async function createTaskAction(
     } catch {
       return { ok: false, error: "Invalid child id" };
     }
-    const child = await getChildForUser(userId, childId);
+    const child = await getChildForUser(dataOwnerId, childId);
     if (!child) return { ok: false, error: "Child not found" };
     const row = await createTask(
-      userId,
+      dataOwnerId,
       childId,
       parsed.data.title,
       parsed.data.routine,
@@ -51,7 +51,7 @@ export async function updateTaskAction(
   raw: unknown,
 ): Promise<ActionResult<TaskDTO>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = updateTaskSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
@@ -71,7 +71,7 @@ export async function updateTaskAction(
     if (d.title !== undefined) patch.title = d.title;
     if (d.routine !== undefined) patch.routine = d.routine;
     if (d.active !== undefined) patch.active = d.active;
-    const row = await updateTaskForUser(userId, taskId, patch);
+    const row = await updateTaskForUser(dataOwnerId, taskId, patch);
     if (!row) return { ok: false, error: "Task not found" };
     return { ok: true, data: taskToDTO(row) };
   } catch (e) {
@@ -84,14 +84,14 @@ export async function deleteTaskAction(
   taskIdStr: string,
 ): Promise<ActionResult<{ deleted: boolean }>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     let taskId: ObjectId;
     try {
       taskId = new ObjectId(taskIdStr);
     } catch {
       return { ok: false, error: "Invalid task id" };
     }
-    const ok = await deleteTaskForUser(userId, taskId);
+    const ok = await deleteTaskForUser(dataOwnerId, taskId);
     return { ok: true, data: { deleted: ok } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -103,7 +103,7 @@ export async function reorderTasksAction(
   raw: unknown,
 ): Promise<ActionResult<{ ok: true }>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = reorderTasksSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
@@ -114,9 +114,9 @@ export async function reorderTasksAction(
     } catch {
       return { ok: false, error: "Invalid child id" };
     }
-    const child = await getChildForUser(userId, childId);
+    const child = await getChildForUser(dataOwnerId, childId);
     if (!child) return { ok: false, error: "Child not found" };
-    await reorderTasksForUser(userId, childId, parsed.data.orderedIds);
+    await reorderTasksForUser(dataOwnerId, childId, parsed.data.orderedIds);
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
