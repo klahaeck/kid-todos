@@ -191,11 +191,13 @@ const MORE_CHILD_EMOJI_OPTIONS = [
 type RoutineConfigViewProps = {
   hasMultipleChildrenFeature?: boolean;
   hasAllRoutinesFeature?: boolean;
+  showBillingLinks?: boolean;
 };
 
 export function RoutineConfigView({
   hasMultipleChildrenFeature = false,
   hasAllRoutinesFeature = false,
+  showBillingLinks = true,
 }: RoutineConfigViewProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RoutineTab>("all");
@@ -630,12 +632,19 @@ export function RoutineConfigView({
                     >
                       Close
                     </Dialog.Close>
-                    <Link
-                      href="/upgrade"
-                      className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                    >
-                      View plans & upgrade
-                    </Link>
+                    {showBillingLinks ? (
+                      <Link
+                        href="/upgrade"
+                        className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                      >
+                        View plans & upgrade
+                      </Link>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Ask the primary account holder to upgrade the household
+                        plan.
+                      </p>
+                    )}
                     <Link
                       href="/settings"
                       className="text-center text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground sm:text-left"
@@ -717,7 +726,10 @@ export function RoutineConfigView({
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-muted-foreground">
                 Your morning routine item is saved. On the free plan it does not
-                show on the kids dashboard. Upgrade to include morning checklists on the dashboard.
+                show on the kids dashboard.{" "}
+                {showBillingLinks
+                  ? "Upgrade to include morning checklists on the dashboard."
+                  : "Ask the primary account holder to upgrade to show morning checklists on the dashboard."}
               </Dialog.Description>
               <div className="mt-6 flex flex-wrap justify-end gap-2">
                 <Dialog.Close
@@ -726,12 +738,14 @@ export function RoutineConfigView({
                 >
                   Close
                 </Dialog.Close>
-                <Link
-                  href="/upgrade"
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  View plans & upgrade
-                </Link>
+                {showBillingLinks ? (
+                  <Link
+                    href="/upgrade"
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                  >
+                    View plans & upgrade
+                  </Link>
+                ) : null}
               </div>
             </Dialog.Popup>
           </Dialog.Viewport>

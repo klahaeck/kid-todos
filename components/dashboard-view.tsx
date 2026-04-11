@@ -159,10 +159,13 @@ export function DashboardView({
   fontClassName,
   hasMultipleChildrenFeature = false,
   hasAllRoutinesFeature = false,
+  showBillingLinks = true,
 }: {
   fontClassName: string;
   hasMultipleChildrenFeature?: boolean;
   hasAllRoutinesFeature?: boolean;
+  /** Household members use the primary’s plan; hide upgrade CTAs. */
+  showBillingLinks?: boolean;
 }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
@@ -439,6 +442,7 @@ export function DashboardView({
           profile={data.profile}
           nowMs={nowMs}
           hasAllRoutinesFeature={hasAllRoutinesFeature}
+          showBillingLinks={showBillingLinks}
           pendingTaskKeys={pendingTaskKeys}
           toggleMut={{ mutate: toggleMut.mutate }}
         />
@@ -462,6 +466,7 @@ function KidRoutineBlock({
   profile,
   nowMs,
   hasAllRoutinesFeature,
+  showBillingLinks,
   pendingTaskKeys,
   toggleMut,
 }: {
@@ -469,6 +474,7 @@ function KidRoutineBlock({
   profile: ProfileDTO;
   nowMs: number;
   hasAllRoutinesFeature: boolean;
+  showBillingLinks: boolean;
   pendingTaskKeys: ReadonlySet<string>;
   toggleMut: {
     mutate: (v: { childId: string; taskId: string }) => void;
@@ -569,14 +575,24 @@ function KidRoutineBlock({
         <p className="rounded-2xl border border-border bg-muted/80 px-4 py-4 text-center text-sm text-muted-foreground">
           It&apos;s morning routine time. Your plan shows evening tasks on this
           screen only.{" "}
-          <Link
-            href="/upgrade"
-            className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
-          >
-            Upgrade
-          </Link>{" "}
-          to include the morning checklists here. Evening tasks will still show
-          here during the evening window (set per child on{" "}
+          {showBillingLinks ? (
+            <>
+              <Link
+                href="/upgrade"
+                className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
+              >
+                Upgrade
+              </Link>{" "}
+              to include the morning checklists here.{" "}
+            </>
+          ) : (
+            <>
+              Ask the primary account holder to upgrade to include morning
+              checklists here.{" "}
+            </>
+          )}
+          Evening tasks will still show here during the evening window (set per
+          child on{" "}
           <Link
             href="/routines"
             className="font-semibold text-brand-grape underline hover:text-brand-grape/85"

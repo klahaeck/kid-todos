@@ -1,5 +1,5 @@
 import { DashboardView } from "@/components/dashboard-view";
-import { requireUserId } from "@/lib/authz";
+import { resolveHouseholdContext } from "@/lib/authz";
 import {
   DEFAULT_DASHBOARD_FONT,
   normalizeDashboardFont,
@@ -12,8 +12,8 @@ export default async function DashboardPage() {
   const access = await getSubscriptionAccess();
   let fontId = DEFAULT_DASHBOARD_FONT;
   try {
-    const userId = await requireUserId();
-    const profile = await ensureProfileForClerkUser(userId);
+    const { dataOwnerId } = await resolveHouseholdContext();
+    const profile = await ensureProfileForClerkUser(dataOwnerId);
     if (access.hasAllThemesFeature) {
       fontId = normalizeDashboardFont(profileToDTO(profile).dashboardFont);
     }
@@ -25,6 +25,7 @@ export default async function DashboardPage() {
       fontClassName={getDashboardFontClassName(fontId)}
       hasMultipleChildrenFeature={access.hasMultipleChildrenFeature}
       hasAllRoutinesFeature={access.hasAllRoutinesFeature}
+      showBillingLinks={access.isPrimary}
     />
   );
 }

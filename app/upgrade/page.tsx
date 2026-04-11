@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PricingTable } from "@clerk/nextjs";
+import { getSubscriptionAccess } from "@/lib/subscription";
 
 export const metadata: Metadata = {
   title: "Upgrade | StarrySteps",
   description: "Choose a plan and subscribe with Clerk Billing",
 };
 
-export default function UpgradePage() {
+export default async function UpgradePage() {
+  const access = await getSubscriptionAccess();
+  if (access.isAuthenticated && !access.isPrimary) {
+    redirect("/settings");
+  }
+
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-10">
       <div>
@@ -27,6 +35,11 @@ export default function UpgradePage() {
           newSubscriptionRedirectUrl="/routines"
         />
       </div>
+      <p className="text-center text-sm text-muted-foreground">
+        <Link href="/settings" className="font-medium underline underline-offset-2">
+          Back to settings
+        </Link>
+      </p>
     </section>
   );
 }

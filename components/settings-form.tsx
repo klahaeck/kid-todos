@@ -350,8 +350,10 @@ function SettingsFormFields({
 
 export function SettingsForm({
   hasAllThemesFeature,
+  showBillingLinks = true,
 }: {
   hasAllThemesFeature: boolean;
+  showBillingLinks?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [themeUpgradeOpen, setThemeUpgradeOpen] = useState(false);
@@ -427,9 +429,13 @@ export function SettingsForm({
               <Dialog.Description className="mt-1 text-sm text-muted-foreground">
                 Your theme and font are saved. On the free plan they do not
                 appear on the kids dashboard yet—only Classic colors and the
-                default font show there until your subscription includes the{" "}
+                default font show there until the household subscription includes
+                the{" "}
                 <span className="font-medium text-foreground">all_themes</span>{" "}
-                feature. Upgrade to see your choices on the dashboard.
+                feature.{" "}
+                {showBillingLinks
+                  ? "Upgrade to see your choices on the dashboard."
+                  : "Ask the primary account holder to upgrade to see your choices on the dashboard."}
               </Dialog.Description>
               <div className="mt-6 flex flex-wrap justify-end gap-2">
                 <Dialog.Close
@@ -438,12 +444,19 @@ export function SettingsForm({
                 >
                   Close
                 </Dialog.Close>
-                <Link
-                  href="/upgrade"
-                  className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  View plans & upgrade
-                </Link>
+                {showBillingLinks ? (
+                  <Link
+                    href="/upgrade"
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                  >
+                    View plans & upgrade
+                  </Link>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Ask the primary account holder to upgrade for custom themes on
+                    the dashboard.
+                  </p>
+                )}
               </div>
             </Dialog.Popup>
           </Dialog.Viewport>

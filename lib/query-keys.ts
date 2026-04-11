@@ -3,4 +3,6 @@ export const queryKeys = {
   profile: ["profile"] as const,
   admin: ["admin"] as const,
   subscriptionFlags: ["subscription-flags"] as const,
+  household: ["household"] as const,
+  householdPrimaryLabel: ["household-primary-label"] as const,
 };

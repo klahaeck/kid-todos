@@ -1,7 +1,7 @@
 "use server";
 
 import { ObjectId } from "mongodb";
-import { requireUserId } from "@/lib/authz";
+import { resolveHouseholdContext } from "@/lib/authz";
 import type { ActionResult } from "@/lib/types";
 import { todayInTimezone } from "@/lib/date";
 import { ensureProfileForClerkUser } from "@/lib/data/profile";
@@ -16,7 +16,7 @@ export async function toggleTaskCompletionAction(
   taskIdStr: string,
 ): Promise<ActionResult<ToggleCompletionResult>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     let childId: ObjectId;
     let taskId: ObjectId;
     try {
@@ -25,15 +25,15 @@ export async function toggleTaskCompletionAction(
     } catch {
       return { ok: false, error: "Invalid id" };
     }
-    const child = await getChildForUser(userId, childId);
+    const child = await getChildForUser(dataOwnerId, childId);
     if (!child) return { ok: false, error: "Child not found" };
-    const task = await getTaskForUser(userId, taskId);
+    const task = await getTaskForUser(dataOwnerId, taskId);
     if (!task || !task.childId.equals(childId)) {
       return { ok: false, error: "Task not found" };
     }
-    const profile = await ensureProfileForClerkUser(userId);
+    const profile = await ensureProfileForClerkUser(dataOwnerId);
     const date = todayInTimezone(profile.timezone);
-    const result = await toggleCompletion(userId, childId, taskId, date, {
+    const result = await toggleCompletion(dataOwnerId, childId, taskId, date, {
       title: task.title,
       routine: task.routine,
     });

@@ -7,6 +7,7 @@ export default async function RoutinesPage() {
     <RoutineConfigView
       hasMultipleChildrenFeature={access.hasMultipleChildrenFeature}
       hasAllRoutinesFeature={access.hasAllRoutinesFeature}
+      showBillingLinks={access.isPrimary}
     />
   );
 }

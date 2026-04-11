@@ -1,6 +1,6 @@
 "use server";
 
-import { requireUserId } from "@/lib/authz";
+import { resolveHouseholdContext } from "@/lib/authz";
 import type { ActionResult, ProfileDTO } from "@/lib/types";
 import {
   ensureProfileForClerkUser,
@@ -11,8 +11,8 @@ import { updateProfileSchema } from "@/lib/schemas";
 
 export async function getProfile(): Promise<ActionResult<ProfileDTO>> {
   try {
-    const userId = await requireUserId();
-    const p = await ensureProfileForClerkUser(userId);
+    const { dataOwnerId } = await resolveHouseholdContext();
+    const p = await ensureProfileForClerkUser(dataOwnerId);
     return { ok: true, data: profileToDTO(p) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -24,12 +24,12 @@ export async function updateProfile(
   raw: unknown,
 ): Promise<ActionResult<ProfileDTO>> {
   try {
-    const userId = await requireUserId();
+    const { dataOwnerId } = await resolveHouseholdContext();
     const parsed = updateProfileSchema.safeParse(raw);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.message };
     }
-    const p = await updateProfileForUser(userId, parsed.data);
+    const p = await updateProfileForUser(dataOwnerId, parsed.data);
     return { ok: true, data: profileToDTO(p) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

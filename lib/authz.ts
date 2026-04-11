@@ -1,6 +1,30 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { getHouseholdOwnerForMember } from "@/lib/data/household";
 
 export type AppRole = "user" | "admin";
+
+/** Signed-in user vs Mongo data scope for shared household routines. */
+export type HouseholdContext = {
+  viewerId: string;
+  /** Clerk user id that owns children/tasks/profile for this session */
+  dataOwnerId: string;
+  /** True when the viewer is the billing primary (not a household member). */
+  isPrimary: boolean;
+};
+
+export async function householdContextForUserId(
+  viewerId: string,
+): Promise<HouseholdContext> {
+  const ownerForMember = await getHouseholdOwnerForMember(viewerId);
+  if (ownerForMember) {
+    return {
+      viewerId,
+      dataOwnerId: ownerForMember,
+      isPrimary: false,
+    };
+  }
+  return { viewerId, dataOwnerId: viewerId, isPrimary: true };
+}
 
 export type ClerkUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
 
@@ -22,6 +46,11 @@ export async function requireUserId(): Promise<string> {
     throw new Error("Unauthorized");
   }
   return userId;
+}
+
+export async function resolveHouseholdContext(): Promise<HouseholdContext> {
+  const viewerId = await requireUserId();
+  return householdContextForUserId(viewerId);
 }
 
 export async function requireAdminUser(): Promise<ClerkUser> {
