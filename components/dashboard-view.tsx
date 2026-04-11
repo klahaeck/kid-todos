@@ -17,6 +17,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { createPortal } from "react-dom";
 import { getDashboardData } from "@/app/actions/dashboard";
 import { toggleTaskCompletionAction } from "@/app/actions/completions";
 import { calendarDateInTimezone } from "@/lib/date";
@@ -648,39 +649,43 @@ function KidRoutineBlock({
         </ul>
       ) : null}
 
-      {congratsVisible ? (
-        <>
-          {/*
-            Below fireworks (z-index 80 in confetti-provider) and headline (z-200)
-            so particles and text stay visible on top. Scrim uses pointer-events-auto
-            so taps don’t reach the routine buttons underneath.
-          */}
-          <div
-            className={cn(
-              "fixed inset-0 z-65 bg-linear-to-b from-[#1a2744]/88 via-[#243B6B]/82 to-[#18253F]/90 backdrop-blur-[2px] transition-opacity duration-500 ease-out",
-              congratsExiting ? "opacity-0" : "opacity-100",
-            )}
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none fixed inset-0 z-200 flex items-center justify-center px-6"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <LetterCelebrationHeadline
-              text={celebrationText}
-              exiting={congratsExiting}
-              onExitComplete={handleCelebrationExitComplete}
-              className="max-w-[min(92vw,40rem)] text-balance bg-linear-to-br from-[#fffef5] via-[#ffe9a8] via-35% from-10% to-[#d9a21a] bg-clip-text text-center font-bold text-transparent animate-in zoom-in-95 fade-in duration-500 text-5xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl"
-              style={{
-                fontFamily: "var(--font-heading, inherit)",
-                filter:
-                  "drop-shadow(0 1px 1.5px rgba(24, 37, 63, 0.98)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.92)) drop-shadow(0 5px 18px rgba(0, 0, 0, 0.82)) drop-shadow(0 10px 40px rgba(0, 0, 0, 0.65))",
-              }}
-            />
-          </div>
-        </>
-      ) : null}
+      {congratsVisible
+        ? createPortal(
+            <>
+              {/*
+                Portaled to document.body so position:fixed is always viewport-relative
+                (avoids transformed ancestors). h-dvh + safe-area insets fix mobile
+                browser chrome / notch centering. z-65 scrim below fireworks (80); z-200
+                headline above particles.
+              */}
+              <div
+                className={cn(
+                  "fixed top-0 left-0 z-65 box-border h-dvh w-full bg-linear-to-b from-[#1a2744]/88 via-[#243B6B]/82 to-[#18253F]/90 backdrop-blur-[2px] transition-opacity duration-500 ease-out",
+                  congratsExiting ? "opacity-0" : "opacity-100",
+                )}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none fixed top-0 left-0 z-200 box-border flex h-dvh w-full flex-col items-center justify-center pl-[max(1.5rem,env(safe-area-inset-left,0px))] pr-[max(1.5rem,env(safe-area-inset-right,0px))] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <LetterCelebrationHeadline
+                  text={celebrationText}
+                  exiting={congratsExiting}
+                  onExitComplete={handleCelebrationExitComplete}
+                  className="w-full max-w-[min(92vw,40rem)] text-balance bg-linear-to-br from-[#fffef5] via-[#ffe9a8] via-35% from-10% to-[#d9a21a] bg-clip-text text-center font-bold text-transparent animate-in zoom-in-95 fade-in duration-500 text-5xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl"
+                  style={{
+                    fontFamily: "var(--font-heading, inherit)",
+                    filter:
+                      "drop-shadow(0 1px 1.5px rgba(24, 37, 63, 0.98)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.92)) drop-shadow(0 5px 18px rgba(0, 0, 0, 0.82)) drop-shadow(0 10px 40px rgba(0, 0, 0, 0.65))",
+                  }}
+                />
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
