@@ -6,9 +6,11 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import {
   useMutation,
   useMutationState,
-  useQuery,
+  useQuery as useRqQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useQuery as useConvexQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
   useCallback,
   useEffect,
@@ -27,6 +29,7 @@ import type {
   DashboardDTO,
   ProfileDTO,
   Routine,
+  TaskDTO,
 } from "@/lib/types";
 import {
   routineListAllRoutinesGate,
@@ -205,7 +208,7 @@ export function DashboardView({
 
   const queryClient = useQueryClient();
   const toggleMutationKey = ["toggle-task-completion"];
-  const dashboardQuery = useQuery({
+  const dashboardQuery = useRqQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
       const r = await getDashboardData();
@@ -307,7 +310,34 @@ export function DashboardView({
     [pendingToggles],
   );
 
-  const data = dashboardQuery.data;
+  const baseDashboard = dashboardQuery.data;
+  const ownerUserId = baseDashboard?.dataOwnerId;
+  const childIdsConvex = useMemo(
+    () => baseDashboard?.children.map((s) => s.child.id) ?? [],
+    [baseDashboard],
+  );
+  const liveTasks = useConvexQuery(
+    api.tasks.listForOwner,
+    ownerUserId ? { ownerUserId, childIds: childIdsConvex } : "skip",
+  );
+
+  const data = useMemo((): DashboardDTO | undefined => {
+    if (!baseDashboard) return undefined;
+    if (liveTasks === undefined) return baseDashboard;
+    const grouped = new Map<string, TaskDTO[]>();
+    for (const t of liveTasks) {
+      const arr = grouped.get(t.childId) ?? [];
+      arr.push(t);
+      grouped.set(t.childId, arr);
+    }
+    return {
+      ...baseDashboard,
+      children: baseDashboard.children.map((section) => ({
+        ...section,
+        tasks: grouped.get(section.child.id) ?? [],
+      })),
+    };
+  }, [baseDashboard, liveTasks]);
 
   if (dashboardQuery.isLoading) {
     return (
@@ -707,23 +737,47 @@ function TaskTapButton({
   onTap: () => void;
 }) {
   const { addConfetti } = useConfetti();
+  const suppressNextClickRef = useRef(false);
+  const fireTap = useCallback(() => {
+    onTap();
+    if (!complete && !skipConfetti) {
+      addConfetti();
+    }
+  }, [onTap, complete, skipConfetti, addConfetti]);
+
   return (
     <button
       type="button"
       disabled={disabled}
       aria-pressed={complete}
-      onClick={(e) => {
-        e.preventDefault();
-        onTap();
-        if (!complete && !skipConfetti) {
-          addConfetti();
+      onPointerDown={(e) => {
+        if (e.pointerType === "touch") {
+          e.preventDefault();
         }
       }}
-      className={`relative flex h-full min-h-17 w-full items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
+      onPointerUp={(e) => {
+        if (e.pointerType !== "touch") return;
+        e.preventDefault();
+        suppressNextClickRef.current = true;
+        fireTap();
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+        if (suppressNextClickRef.current) {
+          suppressNextClickRef.current = false;
+          return;
+        }
+        fireTap();
+      }}
+      className={`relative flex h-full min-h-17 w-full touch-none select-none items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
         complete
           ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
           : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg) hover:brightness-[0.97]"
       } disabled:opacity-60`}
+      style={{
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+      }}
     >
       {complete ? (
         <span

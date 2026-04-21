@@ -14,6 +14,7 @@ import {
 } from "@/lib/data/children";
 import { ensureProfileForClerkUser } from "@/lib/data/profile";
 import { deleteChildCascade } from "@/lib/data/dashboard";
+import { getConvexAuthToken } from "@/lib/convex-clerk-token";
 import {
   createChildSchema,
   reorderChildrenSchema,
@@ -136,7 +137,10 @@ export async function deleteChildAction(
     } catch {
       return { ok: false, error: "Invalid child id" };
     }
-    const ok = await deleteChildCascade(dataOwnerId, childId);
+    const convexToken = await getConvexAuthToken();
+    const ok = await deleteChildCascade(dataOwnerId, childId, {
+      convexToken,
+    });
     return { ok: true, data: { deleted: ok } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

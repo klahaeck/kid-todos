@@ -169,7 +169,7 @@ export async function redeemInviteAndAddMember(params: {
   memberClerkId: string;
   emailNormalized: string;
 }): Promise<
-  | { ok: true }
+  | { ok: true; ownerClerkId: string }
   | { ok: false; error: string }
 > {
   await ensureIndexes();
@@ -227,7 +227,7 @@ export async function redeemInviteAndAddMember(params: {
     };
   }
 
-  return { ok: true };
+  return { ok: true, ownerClerkId: invite.ownerClerkId };
 }
 
 export async function removeMemberAsOwner(

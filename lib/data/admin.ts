@@ -1,9 +1,12 @@
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { todayInTimezone } from "@/lib/date";
-import type { AdminOverviewDTO, AdminUserRowDTO, ChildSectionDTO } from "@/lib/types";
+import { completionTaskIdToString } from "@/lib/completion-task-id";
+import type { AdminOverviewDTO, AdminUserRowDTO, ChildSectionDTO, TaskDTO } from "@/lib/types";
 import { listAllProfiles, profileToDTO } from "@/lib/data/profile";
 import { childToDTO, listAllChildren } from "@/lib/data/children";
 import { listCompletionsForUsersOnDates } from "@/lib/data/completions";
-import { listTasksForChildIdsAdmin, taskToDTO } from "@/lib/data/tasks";
+import { api } from "@/convex/_generated/api";
+import { getConvexServerSecret } from "@/lib/convex-server-secret";
 
 export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
   const profiles = await listAllProfiles();
@@ -35,16 +38,31 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
     };
   });
 
-  const [tasksByChild, completionsByUserDate] = await Promise.all([
-    listTasksForChildIdsAdmin(allChildIds),
-    listCompletionsForUsersOnDates(
-      userTodaySpecs.map((spec) => ({
-        userId: spec.clerkId,
-        date: spec.today,
-        childIds: spec.children.map((child) => child._id),
-      })),
-    ),
-  ]);
+  let tasksByChild = new Map<string, TaskDTO[]>();
+  try {
+    if (allChildIds.length > 0 && process.env.NEXT_PUBLIC_CONVEX_URL) {
+      const secret = getConvexServerSecret();
+      const flat = await fetchQuery(api.tasks.adminListForChildIds, {
+        secret,
+        childIds: allChildIds.map((id) => id.toHexString()),
+      });
+      for (const t of flat) {
+        const list = tasksByChild.get(t.childId) ?? [];
+        list.push(t);
+        tasksByChild.set(t.childId, list);
+      }
+    }
+  } catch {
+    tasksByChild = new Map();
+  }
+
+  const completionsByUserDate = await listCompletionsForUsersOnDates(
+    userTodaySpecs.map((spec) => ({
+      userId: spec.clerkId,
+      date: spec.today,
+      childIds: spec.children.map((child) => child._id),
+    })),
+  );
 
   const users: AdminUserRowDTO[] = [];
 
@@ -55,7 +73,7 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
     for (const comp of completions) {
       const key = comp.childId.toHexString();
       if (!byChild.has(key)) byChild.set(key, new Set());
-      byChild.get(key)!.add(comp.taskId.toHexString());
+      byChild.get(key)!.add(completionTaskIdToString(comp.taskId));
     }
 
     const sections: ChildSectionDTO[] = [];
@@ -64,7 +82,7 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
       const done = byChild.get(ch._id.toHexString()) ?? new Set();
       sections.push({
         child: childToDTO(ch, profileDoc?.completedTaskIcon),
-        tasks: tasks.map(taskToDTO),
+        tasks,
         completedTaskIds: [...done],
       });
     }
@@ -82,14 +100,23 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
 export async function adminDeleteChild(childHexId: string): Promise<boolean> {
   const { ObjectId } = await import("mongodb");
   const childId = new ObjectId(childHexId);
-  const { deleteTasksForChild } = await import("@/lib/data/tasks");
   const { deleteCompletionsForChild } = await import("@/lib/data/completions");
   const { getDb, ensureIndexes } = await import("@/lib/mongodb");
   await ensureIndexes();
   const db = await getDb();
   const r = await db.collection("children").deleteOne({ _id: childId });
   if (r.deletedCount !== 1) return false;
-  await deleteTasksForChild(childId);
+  try {
+    if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+      const secret = getConvexServerSecret();
+      await fetchMutation(api.tasks.adminDeleteAllTasksForChild, {
+        secret,
+        childId: childHexId,
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
   await deleteCompletionsForChild(childId);
   return true;
 }

@@ -57,7 +57,8 @@ export type TaskDoc = {
 export type CompletionDoc = {
   _id: import("mongodb").ObjectId;
   childId: import("mongodb").ObjectId;
-  taskId: import("mongodb").ObjectId;
+  /** Convex task id (string) or legacy Mongo ObjectId */
+  taskId: string | import("mongodb").ObjectId;
   userId: string;
   /** Calendar date YYYY-MM-DD in the user’s timezone when completed */
   date: string;
@@ -74,7 +75,7 @@ export type TaskCompletionEventDoc = {
   _id: import("mongodb").ObjectId;
   userId: string;
   childId: import("mongodb").ObjectId;
-  taskId: import("mongodb").ObjectId;
+  taskId: string | import("mongodb").ObjectId;
   titleSlug: string;
   routine: Routine;
   calendarDate: string;
@@ -124,6 +125,8 @@ export type ChildSectionDTO = {
 };
 
 export type DashboardDTO = {
+  /** Clerk id of the Mongo/Convex data owner (primary or self when not in a household). */
+  dataOwnerId: string;
   profile: ProfileDTO;
   today: string;
   children: ChildSectionDTO[];

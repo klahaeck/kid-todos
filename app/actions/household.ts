@@ -24,6 +24,11 @@ import {
 import { listChildrenForUser } from "@/lib/data/children";
 import type { ActionResult, HouseholdOverviewDTO } from "@/lib/types";
 import { hasMultipleUsersFeature } from "@/lib/subscription";
+import {
+  convexGrantHouseholdAccess,
+  convexRevokeHouseholdAccess,
+  convexSyncOwnerMembersFromMongo,
+} from "@/lib/convex-household-sync";
 
 const inviteBodySchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -49,6 +54,10 @@ export async function getHouseholdOverviewAction(): Promise<
         listMemberRowsForOwner(ctx.dataOwnerId),
         listPendingInvitesForOwner(ctx.dataOwnerId),
       ]);
+      await convexSyncOwnerMembersFromMongo(
+        ctx.dataOwnerId,
+        memberRows.map((m) => m.memberClerkId),
+      );
       return {
         ok: true,
         data: buildHouseholdOverviewForPrimary(ctx.dataOwnerId, memberRows, pending),
@@ -182,6 +191,7 @@ export async function removeHouseholdMemberAction(
     }
     const ok = await removeMemberAsOwner(ctx.dataOwnerId, memberClerkId);
     if (!ok) return { ok: false, error: "Member not found." };
+    await convexRevokeHouseholdAccess(memberClerkId, ctx.dataOwnerId);
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -195,8 +205,10 @@ export async function leaveHouseholdAction(): Promise<ActionResult<{ ok: true }>
     if (ctx.isPrimary) {
       return { ok: false, error: "You are not a household member." };
     }
+    const ownerClerkId = ctx.dataOwnerId;
     const ok = await leaveHouseholdAsMember(ctx.viewerId);
     if (!ok) return { ok: false, error: "Could not leave the household." };
+    await convexRevokeHouseholdAccess(ctx.viewerId, ownerClerkId);
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -234,6 +246,7 @@ export async function acceptHouseholdInviteAction(
     if (!result.ok) {
       return { ok: false, error: result.error };
     }
+    await convexGrantHouseholdAccess(viewerId, result.ownerClerkId);
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

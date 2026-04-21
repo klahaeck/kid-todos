@@ -1,6 +1,10 @@
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
 import { slugifyTitle } from "@/lib/slugify";
+import {
+  completionTaskIdToString,
+  taskIdMongoOrClause,
+} from "@/lib/completion-task-id";
 import type { CompletionDoc, Routine, TaskCompletionEventDoc } from "@/lib/types";
 
 function col(): Promise<Collection<CompletionDoc & Document>> {
@@ -86,21 +90,34 @@ export async function listCompletionsForUsersOnDates(
 export async function toggleCompletion(
   userId: string,
   childId: ObjectId,
-  taskId: ObjectId,
+  taskId: string,
   date: string,
   taskMeta: { title: string; routine: Routine },
 ): Promise<{ completed: boolean }> {
   await ensureIndexes();
   const c = await col();
-  const existing = await c.findOne({ taskId, date });
+  const matchers = taskIdMongoOrClause(taskId);
+  const existing = await c.findOne({
+    date,
+    taskId: matchers.length === 1 ? matchers[0] : { $in: matchers },
+  });
   if (existing) {
     if (existing.userId !== userId || !existing.childId.equals(childId)) {
       throw new Error("Forbidden");
     }
     await c.deleteOne({ _id: existing._id });
     const ev = await eventsCol();
+    const delMatchers = taskIdMongoOrClause(
+      completionTaskIdToString(existing.taskId),
+    );
     await ev.findOneAndDelete(
-      { userId, childId, taskId, calendarDate: date },
+      {
+        userId,
+        childId,
+        calendarDate: date,
+        taskId:
+          delMatchers.length === 1 ? delMatchers[0] : { $in: delMatchers },
+      },
       { sort: { completedAt: -1 } },
     );
     return { completed: false };
@@ -139,10 +156,13 @@ export async function deleteCompletionsForChild(childId: ObjectId): Promise<void
   await ev.deleteMany({ childId });
 }
 
-export async function deleteCompletionsForTask(taskId: ObjectId): Promise<void> {
+export async function deleteCompletionsForTask(taskId: string): Promise<void> {
   await ensureIndexes();
   const c = await col();
-  await c.deleteMany({ taskId });
+  const matchers = taskIdMongoOrClause(taskId);
+  const q =
+    matchers.length === 1 ? { taskId: matchers[0] } : { taskId: { $in: matchers } };
+  await c.deleteMany(q);
   const ev = await eventsCol();
-  await ev.deleteMany({ taskId });
+  await ev.deleteMany(q);
 }

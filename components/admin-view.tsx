@@ -111,7 +111,8 @@ export function AdminView() {
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="text-2xl font-bold">Admin — all families</h1>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Clerk user ids and Mongo-backed children/tasks. Toggle completions as
+        Clerk user ids, Mongo-backed children, and Convex-backed tasks. Toggle
+        completions as
         the parent would (per that user&apos;s timezone).
       </p>
 

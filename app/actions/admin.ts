@@ -1,18 +1,16 @@
 "use server";
 
 import { ObjectId } from "mongodb";
+import { fetchMutation } from "convex/nextjs";
 import { requireAdminUser } from "@/lib/authz";
 import type { ActionResult, AdminOverviewDTO, ChildDTO, TaskDTO } from "@/lib/types";
 import { buildAdminOverview, adminDeleteChild } from "@/lib/data/admin";
-import { createChild, childToDTO } from "@/lib/data/children";
+import { createChild, childToDTO, getChildForUser } from "@/lib/data/children";
 import { ensureProfileForClerkUser } from "@/lib/data/profile";
-import {
-  createTask,
-  taskToDTO,
-  deleteTaskForUser,
-} from "@/lib/data/tasks";
-import { getChildForUser } from "@/lib/data/children";
 import { createChildSchema, createTaskSchema } from "@/lib/schemas";
+import { api } from "@/convex/_generated/api";
+import { getConvexServerSecret } from "@/lib/convex-server-secret";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export async function getAdminOverviewAction(): Promise<
   ActionResult<AdminOverviewDTO>
@@ -68,13 +66,15 @@ export async function adminCreateTaskAction(
     }
     const child = await getChildForUser(ownerClerkId.trim(), childId);
     if (!child) return { ok: false, error: "Child not found for user" };
-    const row = await createTask(
-      ownerClerkId.trim(),
-      childId,
-      parsed.data.title,
-      parsed.data.routine,
-    );
-    return { ok: true, data: taskToDTO(row) };
+    const secret = getConvexServerSecret();
+    const row = await fetchMutation(api.tasks.adminCreate, {
+      secret,
+      ownerUserId: ownerClerkId.trim(),
+      childId: parsed.data.childId,
+      title: parsed.data.title,
+      routine: parsed.data.routine,
+    });
+    return { ok: true, data: row };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };
@@ -100,14 +100,13 @@ export async function adminDeleteTaskAction(
 ): Promise<ActionResult<{ deleted: boolean }>> {
   try {
     await requireAdminUser();
-    let taskId: ObjectId;
-    try {
-      taskId = new ObjectId(taskIdStr);
-    } catch {
-      return { ok: false, error: "Invalid task id" };
-    }
-    const ok = await deleteTaskForUser(ownerClerkId.trim(), taskId);
-    return { ok: true, data: { deleted: ok } };
+    const secret = getConvexServerSecret();
+    const ok = await fetchMutation(api.tasks.adminDeleteTaskForOwner, {
+      secret,
+      ownerUserId: ownerClerkId.trim(),
+      taskId: taskIdStr as Id<"tasks">,
+    });
+    return { ok: true, data: { deleted: ok.deleted } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: msg };

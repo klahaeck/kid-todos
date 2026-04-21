@@ -18,8 +18,15 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
 import { Eye, EyeOff, GripVertical, Smile } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation as useRqMutation,
+  useQuery as useRqQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useMutation as useConvexMutation, useQuery as useConvexQuery } from "convex/react";
 import { useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { formatTimeHmForLocaleInProfileZone } from "@/lib/format-time-hm";
 import {
   DEFAULT_CHILD_EVENING_START,
@@ -33,12 +40,7 @@ import {
   reorderChildrenAction,
   updateChildAction,
 } from "@/app/actions/children";
-import {
-  createTaskAction,
-  deleteTaskAction,
-  reorderTasksAction,
-  updateTaskAction,
-} from "@/app/actions/tasks";
+import { purgeTaskCompletionsAction } from "@/app/actions/completions";
 import { CompletedTaskIconGraphic } from "@/components/completed-task-icon-graphic";
 import {
   COMPLETED_TASK_ICON_OPTIONS,
@@ -212,7 +214,7 @@ export function RoutineConfigView({
     Record<string, "morning" | "evening">
   >({});
 
-  const dashboardQuery = useQuery({
+  const dashboardQuery = useRqQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
       const r = await getDashboardData();
@@ -221,10 +223,47 @@ export function RoutineConfigView({
     },
   });
 
+  const baseDashboard = dashboardQuery.data;
+  const ownerUserId = baseDashboard?.dataOwnerId;
+  const childIdsForConvex = useMemo(
+    () => baseDashboard?.children.map((s) => s.child.id) ?? [],
+    [baseDashboard],
+  );
+
+  const liveTasks = useConvexQuery(
+    api.tasks.listForOwner,
+    ownerUserId
+      ? { ownerUserId: ownerUserId, childIds: childIdsForConvex }
+      : "skip",
+  );
+
+  const data = useMemo((): DashboardDTO | undefined => {
+    if (!baseDashboard) return undefined;
+    if (liveTasks === undefined) return baseDashboard;
+    const grouped = new Map<string, TaskDTO[]>();
+    for (const t of liveTasks) {
+      const arr = grouped.get(t.childId) ?? [];
+      arr.push(t);
+      grouped.set(t.childId, arr);
+    }
+    return {
+      ...baseDashboard,
+      children: baseDashboard.children.map((section) => ({
+        ...section,
+        tasks: grouped.get(section.child.id) ?? [],
+      })),
+    };
+  }, [baseDashboard, liveTasks]);
+
+  const createTaskConvex = useConvexMutation(api.tasks.create);
+  const removeTaskConvex = useConvexMutation(api.tasks.remove);
+  const updateTaskConvex = useConvexMutation(api.tasks.update);
+  const reorderTasksConvex = useConvexMutation(api.tasks.reorderForChild);
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
 
-  const addChildMut = useMutation({
+  const addChildMut = useRqMutation({
     mutationFn: async (vars: { name: string; emoji?: string }) => {
       const r = await createChildAction(vars);
       if (!r.ok) throw new Error(r.error);
@@ -238,15 +277,21 @@ export function RoutineConfigView({
     },
   });
 
-  const addTaskMut = useMutation({
+  const addTaskMut = useRqMutation({
     mutationFn: async (vars: {
       childId: string;
       title: string;
       routine: Routine;
     }) => {
-      const r = await createTaskAction(vars);
-      if (!r.ok) throw new Error(r.error);
-      return r.data;
+      const owner =
+        queryClient.getQueryData<DashboardDTO>(queryKeys.dashboard)?.dataOwnerId;
+      if (!owner) throw new Error("Not loaded");
+      return await createTaskConvex({
+        ownerUserId: owner,
+        childId: vars.childId,
+        title: vars.title,
+        routine: vars.routine,
+      });
     },
     onSuccess: (_data, variables) => {
       invalidate();
@@ -256,7 +301,7 @@ export function RoutineConfigView({
     },
   });
 
-  const delChildMut = useMutation({
+  const delChildMut = useRqMutation({
     mutationFn: async (id: string) => {
       const r = await deleteChildAction(id);
       if (!r.ok) throw new Error(r.error);
@@ -265,7 +310,7 @@ export function RoutineConfigView({
     onSuccess: () => invalidate(),
   });
 
-  const updateChildMut = useMutation({
+  const updateChildMut = useRqMutation({
     mutationFn: async (vars: {
       id: string;
       emoji?: string | null;
@@ -313,7 +358,7 @@ export function RoutineConfigView({
     onSettled: () => invalidate(),
   });
 
-  const updateChildTimesMut = useMutation({
+  const updateChildTimesMut = useRqMutation({
     mutationFn: async (vars: {
       id: string;
       morningStart?: string | null;
@@ -326,122 +371,54 @@ export function RoutineConfigView({
     onSuccess: () => invalidate(),
   });
 
-  const delTaskMut = useMutation({
-    mutationFn: async (id: string) => {
-      const r = await deleteTaskAction(id);
+  const delTaskMut = useRqMutation({
+    mutationFn: async (task: TaskDTO) => {
+      const owner =
+        queryClient.getQueryData<DashboardDTO>(queryKeys.dashboard)?.dataOwnerId;
+      if (!owner) throw new Error("Not loaded");
+      await removeTaskConvex({
+        ownerUserId: owner,
+        taskId: task.id as Id<"tasks">,
+      });
+      const r = await purgeTaskCompletionsAction(task.id, task.childId);
       if (!r.ok) throw new Error(r.error);
-      return r.data;
     },
     onSuccess: () => invalidate(),
   });
 
-  const updateTaskMut = useMutation({
+  const updateTaskMut = useRqMutation({
     mutationFn: async (vars: { id: string; title: string }) => {
-      const r = await updateTaskAction(vars);
-      if (!r.ok) throw new Error(r.error);
-      return r.data;
-    },
-    onMutate: (vars) => {
-      void queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
-      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
-        queryKeys.dashboard,
-      );
-
-      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) => {
-        if (!current) return current;
-        const nextTitle = vars.title.trim();
-        if (!nextTitle) return current;
-
-        return {
-          ...current,
-          children: current.children.map((section) => ({
-            ...section,
-            tasks: section.tasks.map((task) =>
-              task.id === vars.id ? { ...task, title: nextTitle } : task,
-            ),
-          })),
-        };
+      const owner =
+        queryClient.getQueryData<DashboardDTO>(queryKeys.dashboard)?.dataOwnerId;
+      if (!owner) throw new Error("Not loaded");
+      return await updateTaskConvex({
+        ownerUserId: owner,
+        taskId: vars.id as Id<"tasks">,
+        title: vars.title,
       });
-
-      return { previousDashboard };
-    },
-    onError: (_error, _vars, context) => {
-      if (context?.previousDashboard) {
-        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
-      }
     },
     onSettled: () => invalidate(),
   });
 
-  const reorderMut = useMutation({
+  const reorderMut = useRqMutation({
     mutationFn: async (vars: {
       childId: string;
       routine: Routine;
       orderedIds: string[];
     }) => {
-      const r = await reorderTasksAction(vars);
-      if (!r.ok) throw new Error(r.error);
-      return r.data;
-    },
-    onMutate: (vars) => {
-      void queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
-      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
-        queryKeys.dashboard,
-      );
-
-      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) => {
-        if (!current) return current;
-
-        return {
-          ...current,
-          children: current.children.map((section) => {
-            if (section.child.id !== vars.childId) return section;
-
-            const orderLookup = new Map(
-              vars.orderedIds.map((id, index) => [id, index] as const),
-            );
-
-            const tasks = [...section.tasks].sort((a, b) => {
-              if (a.routine !== b.routine) {
-                return a.routine === "morning" ? -1 : 1;
-              }
-
-              if (a.routine !== vars.routine) {
-                if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-                return a.title.localeCompare(b.title);
-              }
-
-              const aIndex = orderLookup.get(a.id);
-              const bIndex = orderLookup.get(b.id);
-
-              if (aIndex !== undefined && bIndex !== undefined) {
-                return aIndex - bIndex;
-              }
-              if (aIndex !== undefined) return -1;
-              if (bIndex !== undefined) return 1;
-
-              if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-              return a.title.localeCompare(b.title);
-            });
-
-            return { ...section, tasks };
-          }),
-        };
+      const owner =
+        queryClient.getQueryData<DashboardDTO>(queryKeys.dashboard)?.dataOwnerId;
+      if (!owner) throw new Error("Not loaded");
+      return await reorderTasksConvex({
+        ownerUserId: owner,
+        childId: vars.childId,
+        orderedIds: vars.orderedIds as Id<"tasks">[],
       });
-
-      return { previousDashboard };
-    },
-    onError: (_error, _vars, context) => {
-      if (context?.previousDashboard) {
-        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
-      }
     },
     onSettled: () => invalidate(),
   });
 
-  const data = dashboardQuery.data;
-
-  const reorderChildrenMut = useMutation({
+  const reorderChildrenMut = useRqMutation({
     mutationFn: async (vars: { orderedIds: string[] }) => {
       const r = await reorderChildrenAction(vars);
       if (!r.ok) throw new Error(r.error);
@@ -820,7 +797,7 @@ type ConfigChildSectionProps = {
       eveningStart?: string | null;
     }) => void;
   };
-  delTaskMut: { mutate: (id: string) => void };
+  delTaskMut: { mutate: (task: TaskDTO) => void };
   updateTaskMut: {
     isPending: boolean;
     mutate: (v: { id: string; title: string }) => void;
@@ -1506,7 +1483,7 @@ function SortableRoutineTaskRow({
   updateTaskMut,
 }: {
   task: TaskDTO;
-  delTaskMut: { mutate: (id: string) => void };
+  delTaskMut: { mutate: (task: TaskDTO) => void };
   updateTaskMut: {
     isPending: boolean;
     mutate: (v: { id: string; title: string }) => void;
@@ -1604,7 +1581,7 @@ function SortableRoutineTaskRow({
         type="button"
         title="Delete task"
         onClick={() => {
-          if (confirm("Delete this task?")) delTaskMut.mutate(task.id);
+          if (confirm("Delete this task?")) delTaskMut.mutate(task);
         }}
         className="rounded-xl border border-border px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
       >
