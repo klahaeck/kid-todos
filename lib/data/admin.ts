@@ -1,10 +1,8 @@
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { todayInTimezone } from "@/lib/date";
-import { completionTaskIdToString } from "@/lib/completion-task-id";
 import type { AdminOverviewDTO, AdminUserRowDTO, ChildSectionDTO, TaskDTO } from "@/lib/types";
 import { listAllProfiles, profileToDTO } from "@/lib/data/profile";
 import { childToDTO, listAllChildren } from "@/lib/data/children";
-import { listCompletionsForUsersOnDates } from "@/lib/data/completions";
 import { api } from "@/convex/_generated/api";
 import { getConvexServerSecret } from "@/lib/convex-server-secret";
 
@@ -56,24 +54,38 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
     tasksByChild = new Map();
   }
 
-  const completionsByUserDate = await listCompletionsForUsersOnDates(
-    userTodaySpecs.map((spec) => ({
-      userId: spec.clerkId,
-      date: spec.today,
-      childIds: spec.children.map((child) => child._id),
-    })),
-  );
+  const completionsByUserDate = new Map<string, { childId: string; taskId: string }[]>();
+  try {
+    if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+      const secret = getConvexServerSecret();
+      const rows = await fetchQuery(api.completions.adminListForOwnerDates, {
+        secret,
+        specs: userTodaySpecs.map((spec) => ({
+          ownerUserId: spec.clerkId,
+          date: spec.today,
+          childIds: spec.children.map((child) => child._id.toHexString()),
+        })),
+      });
+      for (const row of rows) {
+        completionsByUserDate.set(
+          `${row.ownerUserId}\0${row.date}`,
+          row.completions,
+        );
+      }
+    }
+  } catch {
+    // best-effort admin read: empty completions if Convex is unavailable.
+  }
 
   const users: AdminUserRowDTO[] = [];
 
   for (const { clerkId, today, children, profileDoc } of userTodaySpecs) {
-    const completions =
-      completionsByUserDate.get(`${clerkId}\0${today}`) ?? [];
+    const completions = completionsByUserDate.get(`${clerkId}\0${today}`) ?? [];
     const byChild = new Map<string, Set<string>>();
     for (const comp of completions) {
-      const key = comp.childId.toHexString();
+      const key = comp.childId;
       if (!byChild.has(key)) byChild.set(key, new Set());
-      byChild.get(key)!.add(completionTaskIdToString(comp.taskId));
+      byChild.get(key)!.add(comp.taskId);
     }
 
     const sections: ChildSectionDTO[] = [];
@@ -100,7 +112,6 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
 export async function adminDeleteChild(childHexId: string): Promise<boolean> {
   const { ObjectId } = await import("mongodb");
   const childId = new ObjectId(childHexId);
-  const { deleteCompletionsForChild } = await import("@/lib/data/completions");
   const { getDb, ensureIndexes } = await import("@/lib/mongodb");
   await ensureIndexes();
   const db = await getDb();
@@ -113,10 +124,13 @@ export async function adminDeleteChild(childHexId: string): Promise<boolean> {
         secret,
         childId: childHexId,
       });
+      await fetchMutation(api.completions.adminDeleteAllForChild, {
+        secret,
+        childId: childHexId,
+      });
     }
   } catch {
     /* best-effort */
   }
-  await deleteCompletionsForChild(childId);
   return true;
 }

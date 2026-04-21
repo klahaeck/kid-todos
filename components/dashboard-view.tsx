@@ -312,6 +312,7 @@ export function DashboardView({
 
   const baseDashboard = dashboardQuery.data;
   const ownerUserId = baseDashboard?.dataOwnerId;
+  const dashboardDate = baseDashboard?.today;
   const childIdsConvex = useMemo(
     () => baseDashboard?.children.map((s) => s.child.id) ?? [],
     [baseDashboard],
@@ -320,24 +321,37 @@ export function DashboardView({
     api.tasks.listForOwner,
     ownerUserId ? { ownerUserId, childIds: childIdsConvex } : "skip",
   );
+  const liveCompletions = useConvexQuery(
+    api.completions.listForDay,
+    ownerUserId && dashboardDate
+      ? { ownerUserId, childIds: childIdsConvex, date: dashboardDate }
+      : "skip",
+  );
 
   const data = useMemo((): DashboardDTO | undefined => {
     if (!baseDashboard) return undefined;
-    if (liveTasks === undefined) return baseDashboard;
+    if (liveTasks === undefined || liveCompletions === undefined) return baseDashboard;
     const grouped = new Map<string, TaskDTO[]>();
     for (const t of liveTasks) {
       const arr = grouped.get(t.childId) ?? [];
       arr.push(t);
       grouped.set(t.childId, arr);
     }
+    const doneByChild = new Map<string, Set<string>>();
+    for (const c of liveCompletions) {
+      const current = doneByChild.get(c.childId) ?? new Set<string>();
+      current.add(c.taskId);
+      doneByChild.set(c.childId, current);
+    }
     return {
       ...baseDashboard,
       children: baseDashboard.children.map((section) => ({
         ...section,
         tasks: grouped.get(section.child.id) ?? [],
+        completedTaskIds: [...(doneByChild.get(section.child.id) ?? new Set())],
       })),
     };
-  }, [baseDashboard, liveTasks]);
+  }, [baseDashboard, liveTasks, liveCompletions]);
 
   if (dashboardQuery.isLoading) {
     return (

@@ -20,4 +20,21 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerUserId"])
     .index("by_owner_child", ["ownerUserId", "childId"]),
+
+  taskCompletions: defineTable({
+    ownerUserId: v.string(),
+    childId: v.string(),
+    taskId: v.id("tasks"),
+    date: v.string(),
+    completedAt: v.number(),
+  })
+    .index("by_ownerUserId_and_date", ["ownerUserId", "date"])
+    .index("by_ownerUserId_and_date_and_taskId", [
+      "ownerUserId",
+      "date",
+      "taskId",
+    ])
+    .index("by_ownerUserId_and_taskId", ["ownerUserId", "taskId"])
+    .index("by_ownerUserId_and_childId", ["ownerUserId", "childId"])
+    .index("by_childId", ["childId"]),
 });

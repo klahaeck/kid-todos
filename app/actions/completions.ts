@@ -1,13 +1,12 @@
 "use server";
 
 import { ObjectId } from "mongodb";
-import { fetchQuery } from "convex/nextjs";
+import { fetchMutation } from "convex/nextjs";
 import { resolveHouseholdContext } from "@/lib/authz";
 import type { ActionResult } from "@/lib/types";
 import { todayInTimezone } from "@/lib/date";
 import { ensureProfileForClerkUser } from "@/lib/data/profile";
 import { getChildForUser } from "@/lib/data/children";
-import { toggleCompletion, deleteCompletionsForTask } from "@/lib/data/completions";
 import { getConvexAuthToken } from "@/lib/convex-clerk-token";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -32,23 +31,18 @@ export async function toggleTaskCompletionAction(
     if (!token || !process.env.NEXT_PUBLIC_CONVEX_URL) {
       return { ok: false, error: "Realtime tasks unavailable (Convex auth)." };
     }
-    const task = await fetchQuery(
-      api.tasks.getForOwner,
+    const profile = await ensureProfileForClerkUser(dataOwnerId);
+    const date = todayInTimezone(profile.timezone);
+    const result = await fetchMutation(
+      api.completions.toggleForDay,
       {
         ownerUserId: dataOwnerId,
+        childId: childIdStr,
         taskId: taskIdStr as Id<"tasks">,
+        date,
       },
       { token },
     );
-    if (!task || task.childId !== childIdStr) {
-      return { ok: false, error: "Task not found" };
-    }
-    const profile = await ensureProfileForClerkUser(dataOwnerId);
-    const date = todayInTimezone(profile.timezone);
-    const result = await toggleCompletion(dataOwnerId, childId, taskIdStr, date, {
-      title: task.title,
-      routine: task.routine,
-    });
     return { ok: true, data: result };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
@@ -71,7 +65,18 @@ export async function purgeTaskCompletionsAction(
     }
     const child = await getChildForUser(dataOwnerId, childId);
     if (!child) return { ok: false, error: "Child not found" };
-    await deleteCompletionsForTask(taskIdStr);
+    const token = await getConvexAuthToken();
+    if (!token || !process.env.NEXT_PUBLIC_CONVEX_URL) {
+      return { ok: false, error: "Realtime tasks unavailable (Convex auth)." };
+    }
+    await fetchMutation(
+      api.completions.removeForTask,
+      {
+        ownerUserId: dataOwnerId,
+        taskId: taskIdStr as Id<"tasks">,
+      },
+      { token },
+    );
     return { ok: true, data: { ok: true } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

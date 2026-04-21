@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as completions from "../completions.js";
 import type * as householdSync from "../householdSync.js";
 import type * as tasks from "../tasks.js";
 
@@ -18,6 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  completions: typeof completions;
   householdSync: typeof householdSync;
   tasks: typeof tasks;
 }>;

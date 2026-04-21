@@ -40,7 +40,6 @@ import {
   reorderChildrenAction,
   updateChildAction,
 } from "@/app/actions/children";
-import { purgeTaskCompletionsAction } from "@/app/actions/completions";
 import { CompletedTaskIconGraphic } from "@/components/completed-task-icon-graphic";
 import {
   COMPLETED_TASK_ICON_OPTIONS,
@@ -380,8 +379,6 @@ export function RoutineConfigView({
         ownerUserId: owner,
         taskId: task.id as Id<"tasks">,
       });
-      const r = await purgeTaskCompletionsAction(task.id, task.childId);
-      if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => invalidate(),
   });

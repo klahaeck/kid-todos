@@ -1,10 +1,8 @@
 import { ObjectId } from "mongodb";
-import { fetchQuery } from "convex/nextjs";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { todayInTimezone } from "@/lib/date";
-import { completionTaskIdToString } from "@/lib/completion-task-id";
 import type { ChildSectionDTO, DashboardDTO, TaskDTO } from "@/lib/types";
 import { childToDTO, listChildrenForUser } from "@/lib/data/children";
-import { listCompletionsForDay } from "@/lib/data/completions";
 import { ensureProfileForClerkUser, profileToDTO } from "@/lib/data/profile";
 import { api } from "@/convex/_generated/api";
 
@@ -16,10 +14,9 @@ export async function buildDashboardForUser(
   const today = todayInTimezone(profile.timezone);
   const children = await listChildrenForUser(clerkId);
   const childHexIds = children.map((ch) => ch._id.toHexString());
-  const childIds = children.map((ch) => ch._id);
-  const completions = await listCompletionsForDay(clerkId, today, childIds);
 
   let flatTasks: TaskDTO[] = [];
+  let completionEntries: { childId: string; taskId: string }[] = [];
   const token = options?.convexToken;
   if (token && process.env.NEXT_PUBLIC_CONVEX_URL) {
     try {
@@ -31,6 +28,19 @@ export async function buildDashboardForUser(
     } catch {
       flatTasks = [];
     }
+    try {
+      completionEntries = await fetchQuery(
+        api.completions.listForDay,
+        {
+          ownerUserId: clerkId,
+          childIds: childHexIds,
+          date: today,
+        },
+        { token },
+      );
+    } catch {
+      completionEntries = [];
+    }
   }
 
   const tasksByChild = new Map<string, TaskDTO[]>();
@@ -41,10 +51,10 @@ export async function buildDashboardForUser(
   }
 
   const byChild = new Map<string, Set<string>>();
-  for (const comp of completions) {
-    const key = comp.childId.toHexString();
+  for (const comp of completionEntries) {
+    const key = comp.childId;
     if (!byChild.has(key)) byChild.set(key, new Set());
-    byChild.get(key)!.add(completionTaskIdToString(comp.taskId));
+    byChild.get(key)!.add(comp.taskId);
   }
 
   const sections: ChildSectionDTO[] = [];
@@ -72,8 +82,6 @@ export async function deleteChildCascade(
   options?: { convexToken: string | null },
 ): Promise<boolean> {
   const { deleteChildForUser } = await import("@/lib/data/children");
-  const { deleteCompletionsForChild } = await import("@/lib/data/completions");
-  const { fetchMutation } = await import("convex/nextjs");
   const { api } = await import("@/convex/_generated/api");
   const ok = await deleteChildForUser(userId, childId);
   if (!ok) return false;
@@ -85,10 +93,14 @@ export async function deleteChildCascade(
         { ownerUserId: userId, childId: childId.toHexString() },
         { token },
       );
+      await fetchMutation(
+        api.completions.removeForChild,
+        { ownerUserId: userId, childId: childId.toHexString() },
+        { token },
+      );
     } catch {
       /* Convex delete best-effort; child is already removed from Mongo */
     }
   }
-  await deleteCompletionsForChild(childId);
   return true;
 }

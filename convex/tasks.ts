@@ -221,6 +221,15 @@ export const remove = mutation({
     if (!task || task.ownerUserId !== args.ownerUserId) {
       return { deleted: false as const };
     }
+    const completionRows = await ctx.db
+      .query("taskCompletions")
+      .withIndex("by_ownerUserId_and_taskId", (q) =>
+        q.eq("ownerUserId", args.ownerUserId).eq("taskId", args.taskId),
+      )
+      .collect();
+    for (const row of completionRows) {
+      await ctx.db.delete(row._id);
+    }
     await ctx.db.delete(args.taskId);
     return { deleted: true as const, id: String(args.taskId) };
   },
@@ -269,6 +278,15 @@ export const deleteAllForChild = mutation({
     for (const row of rows) {
       await ctx.db.delete(row._id);
     }
+    const completionRows = await ctx.db
+      .query("taskCompletions")
+      .withIndex("by_ownerUserId_and_childId", (q) =>
+        q.eq("ownerUserId", args.ownerUserId).eq("childId", args.childId),
+      )
+      .collect();
+    for (const row of completionRows) {
+      await ctx.db.delete(row._id);
+    }
     return { ok: true as const };
   },
 });
@@ -310,6 +328,15 @@ export const adminDeleteTaskForOwner = mutation({
     const task = await ctx.db.get(args.taskId);
     if (!task || task.ownerUserId !== args.ownerUserId) {
       return { deleted: false as const };
+    }
+    const completionRows = await ctx.db
+      .query("taskCompletions")
+      .withIndex("by_ownerUserId_and_taskId", (q) =>
+        q.eq("ownerUserId", args.ownerUserId).eq("taskId", args.taskId),
+      )
+      .collect();
+    for (const row of completionRows) {
+      await ctx.db.delete(row._id);
     }
     await ctx.db.delete(args.taskId);
     return { deleted: true as const };
@@ -380,6 +407,13 @@ export const adminDeleteAllTasksForChild = mutation({
       if (row.childId === args.childId) {
         await ctx.db.delete(row._id);
       }
+    }
+    const completionRows = await ctx.db
+      .query("taskCompletions")
+      .withIndex("by_childId", (q) => q.eq("childId", args.childId))
+      .collect();
+    for (const row of completionRows) {
+      await ctx.db.delete(row._id);
     }
     return { ok: true as const };
   },
