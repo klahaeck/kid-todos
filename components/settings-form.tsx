@@ -203,18 +203,18 @@ function SettingsFormFields({
         : "Save changes";
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">Routine settings</h1>
+    <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      <h2 className="text-2xl font-bold tracking-tight text-foreground">Preferences</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         “Today” for task completions uses your timezone. Set each child&apos;s
-        morning and evening start times on the{" "}
+        morning and evening start times in the{" "}
         <Link
-          href="/routines"
+          href="/settings?tab=routines"
           className="font-medium text-brand-grape underline underline-offset-2 hover:text-brand-grape/85"
         >
           Routines
         </Link>{" "}
-        page.
+        tab.
       </p>
 
       <form
@@ -348,7 +348,7 @@ function SettingsFormFields({
           {saveButtonLabel}
         </button>
       </form>
-    </div>
+    </section>
   );
 }
 

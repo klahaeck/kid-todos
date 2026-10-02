@@ -373,7 +373,7 @@ export function DashboardView({
             ? "Your family's routines start here."
             : "No tasks yet for these routines."}{" "}
           <Link
-            href="/routines"
+            href="/settings?tab=routines"
             className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Set up routines
@@ -395,7 +395,7 @@ export function DashboardView({
       ))}
 
       {/* <p className="text-center text-sm text-muted-foreground">
-        <Link href="/routines" className="underline hover:text-foreground">
+        <Link href="/settings?tab=routines" className="underline hover:text-foreground">
           Edit routines (grown-ups)
         </Link>
         {" · "}
@@ -539,14 +539,14 @@ function KidRoutineBlock({
             </>
           )}
           Evening tasks will still show here during the evening window (set per
-          child on{" "}
+          child in the{" "}
           <Link
-            href="/routines"
+            href="/settings?tab=routines"
             className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Routines
           </Link>
-          ).
+          {" "}tab in Settings).
         </p>
       ) : null}
 
@@ -556,14 +556,14 @@ function KidRoutineBlock({
             <>
               It isn&apos;t morning or evening routine time for this child. Windows:{" "}
               <span className="font-medium text-foreground">{windowsLine}</span>
-              . Adjust start times under this child on the{" "}
+              . Adjust start times under this child in the{" "}
               <Link
-                href="/routines"
+                href="/settings?tab=routines"
                 className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
               >
                 Routines
               </Link>{" "}
-              page.
+              tab in Settings.
             </>
           ) : (
             <>No tasks in this window yet.</>

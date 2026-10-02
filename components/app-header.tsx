@@ -62,13 +62,6 @@ function HeaderContent({ pathname }: { pathname: string }) {
               Dashboard
             </Link>
             <Link
-              href="/routines"
-              aria-current={pathname === "/routines" ? "page" : undefined}
-              className={navLinkClass}
-            >
-              Routines
-            </Link>
-            <Link
               href="/settings"
               aria-current={pathname === "/settings" ? "page" : undefined}
               className={navLinkClass}
@@ -167,16 +160,6 @@ function HeaderContent({ pathname }: { pathname: string }) {
                           onClick={() => setMenuOpen(false)}
                         >
                           Dashboard
-                        </Link>
-                        <Link
-                          href="/routines"
-                          aria-current={
-                            pathname === "/routines" ? "page" : undefined
-                          }
-                          className={navLinkClassMobile}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Routines
                         </Link>
                         <Link
                           href="/settings"

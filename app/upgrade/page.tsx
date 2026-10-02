@@ -28,7 +28,7 @@ export default async function UpgradePage() {
         </p>
       </div>
       <div className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <PricingTable for="user" newSubscriptionRedirectUrl="/routines" />
+        <PricingTable for="user" newSubscriptionRedirectUrl="/settings?tab=routines" />
       </div>
       <p className="text-center text-sm text-muted-foreground">
         <Link

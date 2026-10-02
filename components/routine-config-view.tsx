@@ -518,7 +518,7 @@ export function RoutineConfigView({
     !hasMultipleChildrenFeature && data.children.length > visibleChildren.length;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 sm:px-8">
+    <section className="flex flex-col gap-6" aria-labelledby="routines-heading">
       {mutationError ? <p role="alert" className="rounded-xl border border-brand-coral/40 bg-brand-coral/10 p-3 text-sm text-foreground">
         {mutationError.message}
       </p> : null}
@@ -526,9 +526,9 @@ export function RoutineConfigView({
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-sage">
           Your family&apos;s rhythm
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Routine setup
-        </h1>
+        <h2 id="routines-heading" className="text-2xl font-bold tracking-tight text-foreground">
+          Routines
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Create simple steps your child can follow. They use the{" "}
           <Link
@@ -780,7 +780,7 @@ export function RoutineConfigView({
           </div>
         </SortableContext>
       </DndContext>
-    </div>
+    </section>
   );
 }
 
@@ -1020,7 +1020,7 @@ function ConfigChildSection({
             </button>
           ) : null}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="flex flex-wrap items-center gap-x-1.5 text-xl font-semibold text-foreground">
+            <h3 className="flex flex-wrap items-center gap-x-1.5 text-xl font-semibold text-foreground">
               <button
                 type="button"
                 onClick={() => {
@@ -1046,7 +1046,7 @@ function ConfigChildSection({
                 )}
               </button>
               {section.child.name}
-            </h2>
+            </h3>
             {isEmojiSaving ? (
               <span className="text-xs text-muted-foreground" aria-live="polite">
                 Saving emoji…
@@ -1266,14 +1266,14 @@ function ConfigChildSection({
         </Select>
         <p className="text-xs text-muted-foreground">
           Shown on {section.child.name}&apos;s tasks when they&apos;re marked
-          done. Colors and fonts are on{" "}
+          done. Colors and fonts are in the{" "}
           <Link
             href="/settings"
             className="font-medium text-brand-grape underline underline-offset-2 hover:text-brand-grape/85"
           >
             Settings
           </Link>
-          .
+          {" "}tab.
         </p>
       </div>
 
@@ -1292,9 +1292,9 @@ function ConfigChildSection({
               {morningTasks.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {showRoutineSubheadings ? (
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Morning
-                    </h3>
+                    </h4>
                   ) : null}
                   <SortableContext
                     items={morningTasks.map((t) => t.id)}
@@ -1316,9 +1316,9 @@ function ConfigChildSection({
               {eveningTasks.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {showRoutineSubheadings ? (
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Evening
-                    </h3>
+                    </h4>
                   ) : null}
                   <SortableContext
                     items={eveningTasks.map((t) => t.id)}
