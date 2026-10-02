@@ -42,3 +42,5 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+Apple_info.txt
+AuthKey_NGDJWL76RY.p8
