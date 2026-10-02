@@ -100,7 +100,7 @@ export function HouseholdSettings({
 
   if (overviewQuery.isLoading) {
     return (
-      <section className="border-t border-border px-6 pt-10 pb-6">
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <p className="text-sm text-muted-foreground">Loading household…</p>
       </section>
     );
@@ -108,7 +108,7 @@ export function HouseholdSettings({
 
   if (overviewQuery.isError || !overviewQuery.data) {
     return (
-      <section className="border-t border-border px-6 pt-10 pb-6">
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <p className="text-sm text-red-600">
           {overviewQuery.error instanceof Error
             ? overviewQuery.error.message
@@ -121,8 +121,8 @@ export function HouseholdSettings({
   const overview = overviewQuery.data;
 
   return (
-    <section className="border-t border-border px-6 pt-10 pb-6">
-      <h2 className="text-xl font-bold text-foreground">Household</h2>
+    <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      <h2 className="text-2xl font-bold tracking-tight text-foreground">Household</h2>
       {removeMut.error || revokeMut.error ? <p role="alert" className="mt-2 text-sm text-red-600">
         {(removeMut.error ?? revokeMut.error)?.message}
       </p> : null}

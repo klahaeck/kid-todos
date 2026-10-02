@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
+import { Check } from "lucide-react";
 import {
   useMutation,
   useQuery,
@@ -68,7 +69,7 @@ function DashboardPreview({
         Dashboard preview
       </p>
       <div className={fontClassName}>
-        <div className="rounded-2xl border-2 border-border bg-card/90 p-4">
+        <div className="rounded-2xl border border-border bg-card/90 p-4">
           <p className="text-lg font-bold text-foreground">
             <span className="mr-1.5 inline-block text-2xl leading-none align-middle" aria-hidden>
               🐻
@@ -79,13 +80,16 @@ function DashboardPreview({
             {PREVIEW_TASKS.map((t) => (
               <div
                 key={t.label}
-                className={`rounded-2xl border-3 px-3 py-3 text-center text-sm font-bold leading-snug ${
+                className={`rounded-2xl border-2 px-3 py-3 text-center text-sm font-bold leading-snug ${
                   t.done
                     ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
                     : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg)"
                 }`}
               >
-                {t.label}
+                <span className="flex items-center justify-center gap-2">
+                  {t.done ? <Check className="size-4 shrink-0" aria-hidden /> : null}
+                  {t.label}
+                </span>
               </div>
             ))}
           </div>
@@ -199,8 +203,8 @@ function SettingsFormFields({
         : "Save changes";
 
   return (
-    <div className="mx-auto max-w-lg p-6">
-      <h1 className="text-2xl font-bold text-foreground">Routine settings</h1>
+    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">Routine settings</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         “Today” for task completions uses your timezone. Set each child&apos;s
         morning and evening start times on the{" "}
@@ -339,7 +343,7 @@ function SettingsFormFields({
         <button
           type="submit"
           disabled={isSaveDisabled}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saveButtonLabel}
         </button>
@@ -428,11 +432,8 @@ export function SettingsForm({
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-muted-foreground">
                 Your theme and font are saved. On the free plan they do not
-                appear on the kids dashboard yet—only Classic colors and the
-                default font show there until the household subscription includes
-                the{" "}
-                <span className="font-medium text-foreground">all_themes</span>{" "}
-                feature.{" "}
+                appear on the dashboard yet. A plan with custom themes is needed
+                to display your choices.{" "}
                 {showBillingLinks
                   ? "Upgrade to see your choices on the dashboard."
                   : "Ask the primary account holder to upgrade to see your choices on the dashboard."}
@@ -447,7 +448,7 @@ export function SettingsForm({
                 {showBillingLinks ? (
                   <Link
                     href="/upgrade"
-                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                    className="inline-flex items-center justify-center min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
                   >
                     View plans & upgrade
                   </Link>

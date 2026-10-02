@@ -8,26 +8,23 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-nunito);
-  /* Playful neo-brutalist pops (reference: loud stickers, black outlines) */
-  --color-brand-ink: #0a0a0a;
-  --color-brand-lime: #b8f01a;
-  --color-brand-magenta: #ff2fb9;
-  --color-brand-sun: #ffd53d;
-  --color-brand-grape: #6d28d9;
-  --color-brand-coral: #ff5c33;
-  --color-brand-paper: #f0f0f3;
-  --color-brand-sky: #3db8ff;
-  --color-brand-mint: #5ce5c0;
-  /* Legacy names → map to new palette for existing classnames */
-  --color-brand-twilight: #0a0a0a;
-  --color-brand-gold: #ffd53d;
-  --color-brand-moon: #fffef8;
-  --color-brand-lavender: #e9b8ff;
-  --color-brand-cloud: #d4d4da;
-  --color-brand-night: #0a0a0a;
-  --shadow-brutal: 4px 4px 0 0 #0a0a0a;
-  --shadow-brutal-sm: 3px 3px 0 0 #0a0a0a;
-  --shadow-brutal-lg: 6px 6px 0 0 #0a0a0a;
+  --color-brand-ink: #18253f;
+  --color-brand-twilight: #243b6b;
+  --color-brand-night: #18253f;
+  --color-brand-sky: #6fafea;
+  --color-brand-gold: #f6c85f;
+  --color-brand-sun: #f6c85f;
+  --color-brand-moon: #fff6e8;
+  --color-brand-lavender: #c9b8f5;
+  --color-brand-mint: #8ed9c4;
+  --color-brand-coral: #b86b54;
+  --color-brand-cloud: #e9eef5;
+  --color-brand-sage: #4a6e5a;
+  --color-brand-paper: #faf8f2;
+  /* Compatibility aliases for existing accent classes. */
+  --color-brand-lime: #dbe6d9;
+  --color-brand-magenta: #b86b54;
+  --color-brand-grape: #243b6b;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -68,49 +65,47 @@
 
 :root {
   color-scheme: light;
-  /* Default “sticker stack” — electric accents, black ink, chunky radius */
-  --background: oklch(0.955 0.01 280);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(0.995 0.003 280);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* Primary actions = brand lime; inline links use text-brand-grape in components */
-  --primary: oklch(0.87 0.205 125);
-  --primary-foreground: oklch(0.12 0.03 145);
-  --secondary: oklch(0.92 0.2 330);
-  --secondary-foreground: oklch(0.145 0 0);
-  --muted: oklch(0.92 0.01 280);
-  --muted-foreground: oklch(0.38 0.02 280);
-  --accent: oklch(0.94 0.16 95);
-  --accent-foreground: oklch(0.145 0 0);
-  --destructive: oklch(0.62 0.24 25);
-  --border: oklch(0.145 0 0);
-  --input: oklch(0.145 0 0);
-  --ring: oklch(0.65 0.28 330);
-  --chart-1: oklch(0.87 0.205 125);
-  --chart-2: oklch(0.65 0.28 330);
-  --chart-3: oklch(0.94 0.16 95);
-  --chart-4: oklch(0.55 0.24 285);
-  --chart-5: oklch(0.68 0.2 35);
+  --background: #faf8f2;
+  --foreground: #18253f;
+  --card: #ffffff;
+  --card-foreground: #18253f;
+  --popover: #ffffff;
+  --popover-foreground: #18253f;
+  --primary: #243b6b;
+  --primary-foreground: #ffffff;
+  --secondary: #e7ede5;
+  --secondary-foreground: #304d3d;
+  --muted: #efeee8;
+  --muted-foreground: #626b75;
+  --accent: #fff0cd;
+  --accent-foreground: #18253f;
+  --destructive: #ae4138;
+  --border: #e0e3df;
+  --input: #bcc5c0;
+  --ring: #4a6e5a;
+  --chart-1: #4a6e5a;
+  --chart-2: #6fafea;
+  --chart-3: #f6c85f;
+  --chart-4: #c9b8f5;
+  --chart-5: #b86b54;
   --radius: 1rem;
-  --sidebar: oklch(0.96 0.012 280);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.87 0.205 125);
-  --sidebar-primary-foreground: oklch(0.12 0.03 145);
-  --sidebar-accent: oklch(0.92 0.2 330);
-  --sidebar-accent-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.145 0 0);
-  --sidebar-ring: oklch(0.65 0.28 330);
-  --kid-todo-bg: oklch(0.99 0.02 125);
-  --kid-todo-border: oklch(0.145 0 0);
-  --kid-todo-fg: oklch(0.145 0 0);
-  --kid-done-bg: oklch(0.91 0.16 125);
-  --kid-done-border: oklch(0.145 0 0);
-  --kid-done-fg: oklch(0.145 0 0);
+  --sidebar: #faf8f2;
+  --sidebar-foreground: #18253f;
+  --sidebar-primary: #243b6b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7ede5;
+  --sidebar-accent-foreground: #304d3d;
+  --sidebar-border: #e0e3df;
+  --sidebar-ring: #4a6e5a;
+  --kid-todo-bg: #fffaf0;
+  --kid-todo-border: #d6cdbb;
+  --kid-todo-fg: #243b6b;
+  --kid-done-bg: #e0eee3;
+  --kid-done-border: #93b39e;
+  --kid-done-fg: #304d3d;
 }
 
-/* Playful palettes */
+/* Optional child dashboard palettes. Parent screens use the default palette. */
 [data-theme="ocean"] {
   color-scheme: light;
   --background: oklch(0.96 0.03 235);
@@ -322,14 +317,14 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: radial-gradient(
-      oklch(0.82 0.02 280) 1.25px,
-      transparent 1.25px
-    );
-    background-size: 22px 22px;
+    line-height: 1.6;
   }
   html {
     @apply font-sans;
+  }
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
   }
   h1,
   h2,
@@ -352,4 +347,19 @@
 body.dashboard-fullscreen-mode [data-app-chrome="header"],
 body.dashboard-fullscreen-mode [data-app-chrome="footer"] {
   display: none;
+}
+
+body.dashboard-fullscreen-mode [data-dashboard-content] {
+  margin-block: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

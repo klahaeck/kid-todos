@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 });
 
 const siteDescription =
-  "Turn daily routines into calm, positive moments — morning and evening flows kids can follow.";
+  "Simple morning and evening routines that help children grow more independent and bring a calmer rhythm to family life.";
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -86,10 +86,22 @@ export default function RootLayout({
     >
       <GoogleTagManager gtmId="GTM-W2JN8HMV" />
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <ClerkProvider>
+        <ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: "#243b6b",
+              colorText: "#18253f",
+              colorBackground: "#ffffff",
+              fontFamily: "var(--font-inter), sans-serif",
+              borderRadius: "0.75rem",
+            },
+          }}
+        >
           <Providers>
             <AppHeader />
-            <main className="relative flex min-h-0 flex-1 flex-col">{children}</main>
+            <main className="relative flex min-h-0 flex-1 flex-col">
+              {children}
+            </main>
             <AppFooter />
           </Providers>
         </ClerkProvider>

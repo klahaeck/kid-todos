@@ -4,13 +4,12 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-/** Avoids TLS handshake failures (OpenSSL alert 80) when Node picks IPv6 first on hosts like Vercel. */
 const clientOptions: MongoClientOptions = {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 };
 
 function getMongoUri(): string {
@@ -28,12 +27,25 @@ export function getMongoClient(): Promise<MongoClient> {
   if (process.env.NODE_ENV === "development") {
     if (!global._mongoClientPromise) {
       const client = new MongoClient(uri, clientOptions);
-      global._mongoClientPromise = client.connect();
+      const promise = client.connect().catch((error: unknown) => {
+        // Allow the next request to retry after connectivity is restored.
+        if (global._mongoClientPromise === promise) {
+          global._mongoClientPromise = undefined;
+        }
+        throw error;
+      });
+      global._mongoClientPromise = promise;
     }
     return global._mongoClientPromise;
   }
   if (!prodClientPromise) {
-    prodClientPromise = new MongoClient(uri, clientOptions).connect();
+    const promise = new MongoClient(uri, clientOptions).connect().catch((error: unknown) => {
+      if (prodClientPromise === promise) {
+        prodClientPromise = null;
+      }
+      throw error;
+    });
+    prodClientPromise = promise;
   }
   return prodClientPromise;
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { animate, stagger } from "animejs";
+import { animate } from "animejs";
 import Link from "next/link";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Check, Maximize2, Minimize2, Moon, Sparkles, Sun } from "lucide-react";
 import {
   useMutation,
   useMutationState,
@@ -43,23 +43,7 @@ import { Button } from "@/components/ui/button";
 import type { CompletedTaskIconId } from "@/lib/completed-task-icon-options";
 import { cn } from "@/lib/utils";
 
-function splitGraphemes(text: string): string[] {
-  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
-    return [
-      ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
-        text,
-      ),
-    ].map((s) => s.segment);
-  }
-  return [...text];
-}
-
-/** Words vs whitespace runs — line breaks occur between runs, not inside words. */
-function splitWordsAndSpace(text: string): string[] {
-  return text.split(/(\s+)/).filter((p) => p.length > 0);
-}
-
-function LetterCelebrationHeadline({
+function CelebrationHeadline({
   text,
   className,
   style,
@@ -73,7 +57,6 @@ function LetterCelebrationHeadline({
   onExitComplete: () => void;
 }) {
   const containerRef = useRef<HTMLParagraphElement>(null);
-  const wordParts = useMemo(() => splitWordsAndSpace(text), [text]);
   const onExitCompleteRef = useRef(onExitComplete);
 
   useEffect(() => {
@@ -83,14 +66,10 @@ function LetterCelebrationHeadline({
   useEffect(() => {
     const root = containerRef.current;
     if (!root) return;
-    const targets = root.querySelectorAll<HTMLElement>("[data-celebration-char]");
-    if (!targets.length) return;
-
-    const animation = animate(targets, {
+    const animation = animate(root, {
       opacity: [0, 1],
-      y: ["0.2em", "0"],
+      translateY: ["0.2em", "0em"],
       duration: 480,
-      delay: stagger(36, { ease: "outQuad" }),
       ease: "outCubic",
     });
 
@@ -103,20 +82,11 @@ function LetterCelebrationHeadline({
     if (!exiting) return;
     const root = containerRef.current;
     if (!root) return;
-    const targets = root.querySelectorAll<HTMLElement>("[data-celebration-char]");
-    if (!targets.length) {
-      queueMicrotask(() => {
-        onExitCompleteRef.current();
-      });
-      return;
-    }
-
     let cancelled = false;
-    const animation = animate(targets, {
+    const animation = animate(root, {
       opacity: [1, 0],
-      y: [0, "-0.2em"],
+      translateY: ["0em", "-0.2em"],
       duration: 380,
-      delay: stagger(30, { from: "last", ease: "inQuad" }),
       ease: "inCubic",
     });
 
@@ -133,29 +103,8 @@ function LetterCelebrationHeadline({
   }, [exiting]);
 
   return (
-    <p ref={containerRef} className={className} style={style}>
-      {wordParts.map((part, wordIndex) => {
-        if (/^\s+$/.test(part)) {
-          return part;
-        }
-        const graphemes = splitGraphemes(part);
-        return (
-          <span
-            key={`w-${wordIndex}-${part}`}
-            className="inline-block whitespace-nowrap"
-          >
-            {graphemes.map((segment, i) => (
-              <span
-                key={`${wordIndex}-${i}-${segment}`}
-                data-celebration-char
-                className="inline-block opacity-0 will-change-[opacity,transform]"
-              >
-                {segment}
-              </span>
-            ))}
-          </span>
-        );
-      })}
+    <p ref={containerRef} data-celebration-headline className={className} style={style}>
+      {text}
     </p>
   );
 }
@@ -376,7 +325,7 @@ export function DashboardView({
 
   return (
     <div
-      className={`dashboard-font-scope flex w-full flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
+      className={`dashboard-font-scope flex w-full flex-col gap-6 px-6 py-10 pb-16 sm:px-8 ${fontClassName}`}
     >
       {toggleMut.error ? <p role="alert" className="text-center text-sm text-red-600">
         {toggleMut.error.message}
@@ -394,37 +343,20 @@ export function DashboardView({
         {isDashboardFullscreen ? <Minimize2 /> : <Maximize2 />}
       </Button>
 
-      {/* <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-          Tap when you&apos;re done
-        </h1>
-        <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
-          {hasChildren
-            ? "Only tasks for the current morning or evening window (set under Routine settings)."
-            : "Ask a grown-up to add your routines first."}
+      <header className="flex items-center justify-end pr-10">
+        <h1 className="sr-only">Daily routines</h1>
+        <p
+          className="text-xl font-semibold tabular-nums text-muted-foreground"
+          aria-label={`Current time: ${dashboardHeading}`}
+        >
+          {dashboardHeading}
         </p>
-        {hasChildren && hasAnyTask ? (
-          <p className="mx-auto mt-2 max-w-xl text-sm text-zinc-500 dark:text-zinc-400">
-            Times use{" "}
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">
-              {data.profile.timezone?.trim() || "UTC"}
-            </span>
-            . Change windows in{" "}
-            <Link
-              href="/settings"
-              className="font-medium text-emerald-700 underline dark:text-emerald-400"
-            >
-              Routine settings
-            </Link>
-            .
-          </p>
-        ) : null}
-      </header> */}
+      </header>
 
       {!hasChildren || !hasAnyTask ? (
         <p className="rounded-3xl bg-secondary px-6 py-5 text-center text-lg text-secondary-foreground">
           {!hasChildren
-            ? "No kids listed yet."
+            ? "Your family's routines start here."
             : "No tasks yet for these routines."}{" "}
           <Link
             href="/routines"
@@ -433,12 +365,6 @@ export function DashboardView({
             Set up routines
           </Link>
         </p>
-      ) : null}
-
-      {hasChildren && hasAnyTask ? (
-        <header className="text-center">
-          <h2 className="text-xl font-bold text-foreground">{dashboardHeading}</h2>
-        </header>
       ) : null}
 
       {visibleChildren.map((section) => (
@@ -526,6 +452,7 @@ function KidRoutineBlock({
   const allTasksComplete =
     tasks.length > 0 && tasks.every((t) => done.has(t.id));
   const incompleteTaskCount = tasks.filter((t) => !done.has(t.id)).length;
+  const completedTaskCount = tasks.length - incompleteTaskCount;
 
   const celebrationText = useMemo(
     () => `Good job ${section.child.name}!`,
@@ -565,16 +492,22 @@ function KidRoutineBlock({
   if (section.tasks.length === 0) return null;
 
   return (
-    <section className="relative flex w-full flex-col gap-4 rounded-3xl border-2 border-border bg-card/90 p-5 text-card-foreground shadow-sm">
-      <div className="text-center sm:text-left">
-        <h2 className="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold text-foreground">
+    <section className="relative flex w-full flex-col gap-6 rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-sm sm:p-7">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h2 className="flex items-center gap-x-3 text-2xl font-bold text-foreground sm:text-3xl">
           {section.child.emoji ? (
-            <span className="inline-flex shrink-0 text-4xl leading-none" aria-hidden>
+            <span className="inline-flex size-14 shrink-0 items-center justify-center rounded-2xl bg-secondary/60 text-4xl leading-none" aria-hidden>
               {section.child.emoji}
             </span>
           ) : null}
           {section.child.name}
         </h2>
+        {tasks.length > 0 ? (
+          <p className="flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-2 text-sm font-semibold text-secondary-foreground">
+            {isMorningTime ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+            {isMorningTime ? "Morning routine" : "Evening routine"}
+          </p>
+        ) : null}
       </div>
 
       {showMorningUpgradeNudge ? (
@@ -631,11 +564,43 @@ function KidRoutineBlock({
       ) : null}
 
       {tasks.length > 0 ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+            <p className="font-semibold text-foreground" role="status">
+              {allTasksComplete
+                ? "All done. You did it!"
+                : incompleteTaskCount === 1
+                  ? "One more step to go!"
+                  : "Every little step counts."}
+            </p>
+            <p className="font-medium text-muted-foreground">
+              {completedTaskCount} of {tasks.length} steps complete
+            </p>
+          </div>
+          <div
+            role="progressbar"
+            aria-label={`${section.child.name}'s routine progress`}
+            aria-valuemin={0}
+            aria-valuemax={tasks.length}
+            aria-valuenow={completedTaskCount}
+            aria-valuetext={`${completedTaskCount} of ${tasks.length} steps complete`}
+            className="h-3 overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-(--kid-done-border) transition-[width] duration-500 ease-out motion-reduce:transition-none"
+              style={{ width: `${(completedTaskCount / tasks.length) * 100}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {tasks.length > 0 ? (
         <ul className="flex flex-row flex-wrap gap-3 sm:gap-4">
-          {tasks.map((task) => (
-            <li key={task.id} className="min-w-0 flex-1 basis-38 sm:basis-44">
+          {tasks.map((task, index) => (
+            <li key={task.id} className="min-w-0 flex-1 basis-48">
               <TaskTapButton
                 task={task}
+                stepNumber={index + 1}
                 complete={done.has(task.id)}
                 completedTaskIcon={section.child.completedTaskIcon}
                 disabled={pendingTaskKeys.has(`${section.child.id}:${task.id}`)}
@@ -675,12 +640,13 @@ function KidRoutineBlock({
                 aria-live="polite"
                 aria-atomic="true"
               >
-                <LetterCelebrationHeadline
+                <CelebrationHeadline
                   text={celebrationText}
                   exiting={congratsExiting}
                   onExitComplete={handleCelebrationExitComplete}
-                  className="w-full max-w-[min(92vw,40rem)] text-balance bg-linear-to-br from-[#fffef5] via-[#ffe9a8] via-35% from-10% to-[#d9a21a] bg-clip-text text-center font-bold text-transparent animate-in zoom-in-95 fade-in duration-500 text-5xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl"
+                  className="w-full max-w-[min(92vw,40rem)] text-balance wrap-anywhere text-center font-bold text-5xl leading-tight sm:text-6xl md:text-7xl lg:text-8xl"
                   style={{
+                    color: "#fff6e8",
                     fontFamily: "var(--font-heading, inherit)",
                     filter:
                       "drop-shadow(0 1px 1.5px rgba(24, 37, 63, 0.98)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.92)) drop-shadow(0 5px 18px rgba(0, 0, 0, 0.82)) drop-shadow(0 10px 40px rgba(0, 0, 0, 0.65))",
@@ -697,6 +663,7 @@ function KidRoutineBlock({
 
 function TaskTapButton({
   task,
+  stepNumber,
   complete,
   completedTaskIcon,
   disabled,
@@ -704,6 +671,7 @@ function TaskTapButton({
   onTap,
 }: {
   task: { id: string; title: string; routine: Routine };
+  stepNumber: number;
   complete: boolean;
   completedTaskIcon: CompletedTaskIconId;
   disabled: boolean;
@@ -744,25 +712,30 @@ function TaskTapButton({
         }
         fireTap();
       }}
-      className={`relative flex h-full min-h-17 w-full touch-none select-none items-center justify-center rounded-3xl border-3 px-4 py-4 text-center text-lg font-bold leading-snug shadow-sm transition-all active:scale-[0.9] sm:min-h-19 sm:px-5 sm:text-xl ${
+      className={`group relative flex h-full min-h-30 w-full touch-none select-none items-center justify-center gap-3 rounded-3xl border-2 px-4 py-5 text-left text-lg font-bold leading-snug shadow-[0_5px_0_var(--task-edge),inset_0_2px_0_rgba(255,255,255,0.6)] transition-[background-color,border-color,transform,box-shadow] duration-200 hover:-translate-y-1 active:translate-y-1 active:scale-[0.97] active:shadow-[0_1px_0_var(--task-edge)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transform-none sm:min-h-34 sm:px-5 sm:text-xl ${
         complete
           ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
           : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg) hover:brightness-[0.97]"
-      } disabled:opacity-60`}
+      } disabled:pointer-events-none disabled:opacity-60`}
       style={{
+        "--task-edge": complete ? "var(--kid-done-border)" : "var(--kid-todo-border)",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
-      }}
+      } as CSSProperties}
     >
       {complete ? (
         <span
-          className="pointer-events-none absolute -top-2 -left-2 z-1 text-4xl leading-none sm:-top-2 sm:-left-2 sm:text-4xl -rotate-12 animate-in fade-in fade-out-0 duration-200"
+          className="pointer-events-none absolute -top-3 -right-2 z-1 text-4xl leading-none -rotate-12 animate-in zoom-in-50 fade-in duration-300"
           aria-hidden
         >
           <CompletedTaskIconGraphic iconId={completedTaskIcon} />
         </span>
       ) : null}
-      <span className="line-clamp-3 wrap-break-word px-1">{task.title}</span>
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/35 text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-transform duration-200 group-hover:rotate-[-8deg] group-active:scale-90 motion-reduce:transform-none">
+        {complete ? <Check className="size-5" strokeWidth={3} /> : stepNumber}
+      </span>
+      <span className="min-w-0 line-clamp-3 wrap-break-word px-1">{task.title}</span>
+      {complete ? <Sparkles className="pointer-events-none absolute right-3 bottom-3 size-4 opacity-50" aria-hidden /> : null}
     </button>
   );
 }

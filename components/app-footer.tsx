@@ -4,22 +4,22 @@ export function AppFooter() {
   return (
     <footer
       data-app-chrome="footer"
-      className="border-t-4 border-black bg-background px-4 py-8"
+      className="border-t border-border bg-background px-6 py-8 sm:px-8"
     >
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
-        <p className="font-sans text-sm font-bold text-muted-foreground">
-          &copy; {new Date().getFullYear()} starrysteps
+      <div className="mx-auto flex max-w-[68rem] flex-col items-center gap-3 sm:flex-row sm:justify-between">
+        <p className="font-sans text-sm font-medium text-muted-foreground">
+          &copy; {new Date().getFullYear()} StarrySteps
         </p>
-        <nav className="flex gap-4">
+        <nav aria-label="Legal" className="flex gap-6">
           <Link
             href="/terms"
-            className="text-sm font-bold text-muted-foreground underline decoration-2 underline-offset-4 transition hover:text-foreground"
+            className="text-sm font-medium text-muted-foreground inline-flex min-h-11 items-center underline-offset-4 hover:underline transition hover:text-foreground"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="text-sm font-bold text-muted-foreground underline decoration-2 underline-offset-4 transition hover:text-foreground"
+            className="text-sm font-medium text-muted-foreground inline-flex min-h-11 items-center underline-offset-4 hover:underline transition hover:text-foreground"
           >
             Privacy
           </Link>
