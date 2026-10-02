@@ -5,7 +5,7 @@ import { getSubscriptionAccess } from "@/lib/subscription";
 export default async function SettingsPage() {
   const access = await getSubscriptionAccess();
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-10 py-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10 sm:px-8">
       <SettingsForm
         hasAllThemesFeature={access.hasAllThemesFeature}
         showBillingLinks={access.isPrimary}

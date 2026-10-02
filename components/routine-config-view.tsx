@@ -518,28 +518,32 @@ export function RoutineConfigView({
     !hasMultipleChildrenFeature && data.children.length > visibleChildren.length;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 sm:px-8">
       {mutationError ? <p role="alert" className="rounded-xl border border-brand-coral/40 bg-brand-coral/10 p-3 text-sm text-foreground">
         {mutationError.message}
       </p> : null}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Routine setup</h1>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-sage">
+          Your family&apos;s rhythm
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Routine setup
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Add children and tasks here. Kids use the{" "}
+          Create simple steps your child can follow. They use the{" "}
           <Link
             href="/dashboard"
             className="font-medium text-brand-grape underline hover:text-brand-grape/85"
           >
             dashboard
           </Link>{" "}
-          to tap tasks when they finish them.
+          to mark each step as they finish.
         </p>
         {!hasAllRoutinesFeature ? (
           <p className="mt-2 text-xs text-muted-foreground">
             Morning tasks you add here are saved, but on the free plan they do
-            not appear on the kids dashboard until your subscription includes the{" "}
-            <span className="font-medium text-foreground">all_routines</span>{" "}
-            feature. Evening tasks show as usual.
+            not appear on the dashboard until you upgrade to a plan with morning
+            routines. Evening tasks are included on the free plan.
           </p>
         ) : null}
         {/* <p className="mt-1 text-sm text-muted-foreground">
@@ -556,7 +560,8 @@ export function RoutineConfigView({
               key={b.id}
               type="button"
               onClick={() => setTab(b.id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              aria-pressed={tab === b.id}
+              className={`min-h-11 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                 tab === b.id
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -575,7 +580,7 @@ export function RoutineConfigView({
               setChildDialog("upgrade");
             }
           }}
-          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="min-h-11 shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
           Add child
         </button>
@@ -1006,7 +1011,7 @@ function ConfigChildSection({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
+    <section className="rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-sm sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {childDragHandle ? (
@@ -1206,13 +1211,12 @@ function ConfigChildSection({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        15-minute steps; labels follow your device&apos;s clock style (12-hour or
-        24-hour). Morning is from morning start until evening start; evening runs
-        from evening start until morning start the next calendar day (in{" "}
+        Morning steps show until evening starts; evening steps show until the
+        next morning. Times use{" "}
         <span className="font-medium text-foreground">
           {profile.timezone?.trim() || "your timezone"}
         </span>
-        ).
+        .
       </p>
 
       <div className="mt-4 flex flex-col gap-1">
@@ -1545,7 +1549,7 @@ function SortableRoutineTaskRow({
         <GripVertical className="size-5 shrink-0" aria-hidden />
       </button>
       <div
-        className="min-h-[52px] flex-1 rounded-2xl border-2 border-input bg-background px-4 py-3 text-left text-base font-medium text-foreground transition-colors"
+        className="min-h-[52px] flex-1 rounded-xl border border-input bg-background px-4 py-3 text-left text-base font-medium text-foreground transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="shrink-0 text-xs font-normal uppercase text-muted-foreground">

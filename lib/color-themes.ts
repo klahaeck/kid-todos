@@ -30,7 +30,7 @@ export const COLOR_THEME_OPTIONS: {
   {
     id: "classic",
     label: "Classic",
-    description: "Sticker-stack default — lime, magenta & sun pops + black outlines",
+    description: "Warm cream, twilight navy, and soft sage accents",
   },
   {
     id: "ocean",
