@@ -298,6 +298,14 @@ export function DashboardView({
     minute: "2-digit",
   }).format(nowDate);
   const dashboardHeading = `${timeLabel}`;
+  const dashboardRoutines = new Set(
+    visibleChildren.flatMap((section) =>
+      routineListAllRoutinesGate(
+        routinesVisibleForKidNow(data.profile, section.child, nowDate),
+        hasAllRoutinesFeature,
+      ).filter((routine) => section.tasks.some((task) => task.routine === routine)),
+    ),
+  );
 
   const toggleFullscreen = async () => {
     if (isBrowserFullscreen && typeof document.exitFullscreen === "function") {
@@ -343,7 +351,7 @@ export function DashboardView({
         {isDashboardFullscreen ? <Minimize2 /> : <Maximize2 />}
       </Button>
 
-      <header className="flex items-center justify-end pr-10">
+      <header className="flex flex-wrap items-center justify-end gap-3 pr-10">
         <h1 className="sr-only">Daily routines</h1>
         <p
           className="text-xl font-semibold tabular-nums text-muted-foreground"
@@ -351,6 +359,12 @@ export function DashboardView({
         >
           {dashboardHeading}
         </p>
+        {(["morning", "evening"] as const).filter((routine) => dashboardRoutines.has(routine)).map((routine) => (
+          <p key={routine} className="flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-2 text-sm font-semibold text-secondary-foreground">
+            {routine === "morning" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+            {routine === "morning" ? "Morning routine" : "Evening routine"}
+          </p>
+        ))}
       </header>
 
       {!hasChildren || !hasAnyTask ? (
@@ -359,7 +373,7 @@ export function DashboardView({
             ? "Your family's routines start here."
             : "No tasks yet for these routines."}{" "}
           <Link
-            href="/routines"
+            href="/settings?tab=routines"
             className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Set up routines
@@ -381,7 +395,7 @@ export function DashboardView({
       ))}
 
       {/* <p className="text-center text-sm text-muted-foreground">
-        <Link href="/routines" className="underline hover:text-foreground">
+        <Link href="/settings?tab=routines" className="underline hover:text-foreground">
           Edit routines (grown-ups)
         </Link>
         {" · "}
@@ -502,12 +516,6 @@ function KidRoutineBlock({
           ) : null}
           {section.child.name}
         </h2>
-        {tasks.length > 0 ? (
-          <p className="flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-2 text-sm font-semibold text-secondary-foreground">
-            {isMorningTime ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-            {isMorningTime ? "Morning routine" : "Evening routine"}
-          </p>
-        ) : null}
       </div>
 
       {showMorningUpgradeNudge ? (
@@ -531,14 +539,14 @@ function KidRoutineBlock({
             </>
           )}
           Evening tasks will still show here during the evening window (set per
-          child on{" "}
+          child in the{" "}
           <Link
-            href="/routines"
+            href="/settings?tab=routines"
             className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
           >
             Routines
           </Link>
-          ).
+          {" "}tab in Settings).
         </p>
       ) : null}
 
@@ -548,14 +556,14 @@ function KidRoutineBlock({
             <>
               It isn&apos;t morning or evening routine time for this child. Windows:{" "}
               <span className="font-medium text-foreground">{windowsLine}</span>
-              . Adjust start times under this child on the{" "}
+              . Adjust start times under this child in the{" "}
               <Link
-                href="/routines"
+                href="/settings?tab=routines"
                 className="font-semibold text-brand-grape underline hover:text-brand-grape/85"
               >
                 Routines
               </Link>{" "}
-              page.
+              tab in Settings.
             </>
           ) : (
             <>No tasks in this window yet.</>

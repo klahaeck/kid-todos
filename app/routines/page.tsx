@@ -1,13 +1,5 @@
-import { RoutineConfigView } from "@/components/routine-config-view";
-import { getSubscriptionAccess } from "@/lib/subscription";
+import { redirect } from "next/navigation";
 
-export default async function RoutinesPage() {
-  const access = await getSubscriptionAccess();
-  return (
-    <RoutineConfigView
-      hasMultipleChildrenFeature={access.hasMultipleChildrenFeature}
-      hasAllRoutinesFeature={access.hasAllRoutinesFeature}
-      showBillingLinks={access.isPrimary}
-    />
-  );
+export default function RoutinesPage() {
+  redirect("/settings?tab=routines");
 }
