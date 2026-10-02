@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
@@ -28,14 +28,14 @@ const navLinkClassMobile =
   "block w-full rounded-xl border-2 border-black/10 bg-card px-4 py-3 text-center text-base font-bold text-foreground shadow-[2px_2px_0_0_#0a0a0a] transition hover:border-black hover:bg-brand-sun/40 active:translate-x-px active:translate-y-px active:shadow-none";
 
 export function AppHeader() {
+  const pathname = usePathname();
+  return <HeaderContent key={pathname} />;
+}
+
+function HeaderContent() {
   const { user, isLoaded } = useUser();
   const isAdmin = user?.publicMetadata?.role === "admin";
-  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
 
   return (
     <header

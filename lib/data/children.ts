@@ -1,4 +1,5 @@
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
+import { withHouseholdTransaction } from "@/lib/data/household-transaction";
 import { getDb, ensureIndexes } from "@/lib/mongodb";
 import {
   normalizeCompletedTaskIcon,
@@ -47,27 +48,32 @@ export async function createChild(
   emoji?: string,
 ): Promise<WithId<ChildDoc>> {
   await ensureIndexes();
-  const c = await col();
-  const last = await c.find({ userId }).sort({ sortOrder: -1 }).limit(1).next();
-  const sortOrder = (last?.sortOrder ?? -1) + 1;
-  const now = new Date();
-  const normalizedEmoji = emoji?.trim() || null;
-  const doc: Omit<ChildDoc, "_id"> = {
-    userId,
-    name,
-    emoji: normalizedEmoji,
-    sortOrder,
-    morningStart: null,
-    morningEnd: null,
-    eveningStart: null,
-    eveningEnd: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const { insertedId } = await c.insertOne(doc as ChildDoc & Document);
-  const created = await c.findOne({ _id: insertedId });
-  if (!created) throw new Error("Failed to create child");
-  return created;
+  return withHouseholdTransaction([userId], async (db, session) => {
+    if (await db.collection("household_members").findOne({ memberClerkId: userId }, { session })) {
+      throw new Error("This account is now a household member. Reload before adding a child.");
+    }
+    const c = db.collection<ChildDoc>("children");
+    const last = await c.find({ userId }, { session }).sort({ sortOrder: -1 }).limit(1).next();
+    const sortOrder = (last?.sortOrder ?? -1) + 1;
+    const now = new Date();
+    const normalizedEmoji = emoji?.trim() || null;
+    const doc: Omit<ChildDoc, "_id"> = {
+      userId,
+      name,
+      emoji: normalizedEmoji,
+      sortOrder,
+      morningStart: null,
+      morningEnd: null,
+      eveningStart: null,
+      eveningEnd: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { insertedId } = await c.insertOne(doc as ChildDoc, { session });
+    const created = await c.findOne({ _id: insertedId }, { session });
+    if (!created) throw new Error("Failed to create child");
+    return created;
+  });
 }
 
 export async function getChildForUser(

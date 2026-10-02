@@ -152,6 +152,8 @@ export type HouseholdMemberDoc = {
   ownerClerkId: string;
   memberClerkId: string;
   joinedAt: Date;
+  /** Retained until the matching Convex revocation succeeds. */
+  revocationRevision?: number;
 };
 
 export type HouseholdInviteDoc = {
@@ -163,6 +165,7 @@ export type HouseholdInviteDoc = {
   expiresAt: Date;
   revokedAt?: Date | null;
   redeemedAt?: Date | null;
+  redeemedByClerkId?: string;
   /** Set when Resend fails so ops can retry */
   emailFailedAt?: Date | null;
 };

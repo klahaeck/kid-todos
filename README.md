@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StarrySteps
 
-## Getting Started
+Family routine management built with Next.js, Clerk, MongoDB, and Convex.
 
-First, run the development server:
+## Local development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Use Node.js 24.15 or newer in the 24 LTS series. Install with `npm ci`, copy
+`env.example` to `.env.local`, and configure Clerk, MongoDB, and Convex.
+Run `npm run convex:dev` and `npm run dev` in separate terminals.
+
+MongoDB must support transactions (Atlas or a replica set). Household membership,
+invitation redemption, and child creation share transaction locks to enforce
+membership limits and prevent nested households. A standalone MongoDB server
+does not support these operations.
+
+Set the same `CONVEX_SERVER_SECRET` in the web app and Convex deployment. Missing
+configuration or synchronization failures return an error instead of reporting
+successful household changes.
+
+Configure `CLERK_JWT_ISSUER_DOMAIN` in Convex and create Clerk's `convex` JWT
+template so authenticated browser mutations can run.
+
+## Validation
+
+```sh
+npm test
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tests use `convex-test` for actual Convex functions, a transaction fixture for
+Mongo repository logic, and jsdom for parent-facing task editing. They do not
+contact Clerk, MongoDB, or a deployed Convex instance. The transaction fixture
+verifies application invariants; production Mongo transaction behavior still
+requires a replica set. The production build needs the app's configured
+environment and network access for Google Fonts.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Household access and deletion
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Mongo household revisions order complete access snapshots in Convex. Convex
+rejects stale or repeated revisions. Removed members remain as pending rows in
+Mongo until synchronization succeeds; retry the remove/leave action or load the
+primary's household settings to finish an interrupted removal. Conditional
+finalization preserves later memberships. A redeemed invite can also be retried
+if its Convex synchronization failed.
 
-## Learn More
+Child deletion records a Convex tombstone and removes tasks and completions in
+indexed batches. The Mongo child remains available for retries until Convex and
+legacy Mongo history cleanup finish. Retry deletion after an interrupted cleanup
+or the "still in progress" message. Tombstones prevent concurrent clients from
+creating tasks or completions for a deleted child.
 
-To learn more about Next.js, take a look at the following resources:
+Household members use the primary's entitlement snapshot for at most one minute.
+Expired snapshots refresh from Clerk, and refresh errors do not extend expired
+paid access. Existing admin/friend role grants are preserved.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy the Convex schema/functions and web app as a coordinated release: the new
+versioned household synchronization and child deletion API must match their web
+callers. Prevent household changes during the cutover from the previous API.
+The new `householdSyncState` and `deletedChildren` tables are additive; existing
+records need no backfill. Mongo creates household revision documents lazily.
+Run the validation commands above before deployment.

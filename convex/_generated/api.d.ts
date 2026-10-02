@@ -8,46 +8,35 @@
  * @module
  */
 
-import type * as completions from "../completions.js";
-import type * as householdSync from "../householdSync.js";
-import type * as tasks from "../tasks.js";
-
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
-
-declare const fullApi: ApiFromModules<{
-  completions: typeof completions;
-  householdSync: typeof householdSync;
-  tasks: typeof tasks;
-}>;
+import type * as childLifecycle from "../childLifecycle.js";
+import type * as completions from "../completions.js";
+import type * as householdSync from "../householdSync.js";
+import type * as tasks from "../tasks.js";
 
 /**
- * A utility for referencing Convex functions in your app's public API.
+ * A utility for referencing Convex functions in your app's API.
  *
  * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
+declare const fullApi: ApiFromModules<{
+  childLifecycle: typeof childLifecycle;
+  completions: typeof completions;
+  householdSync: typeof householdSync;
+  tasks: typeof tasks;
+}>;
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">
 >;
-
-export declare const components: {};

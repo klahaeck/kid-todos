@@ -23,7 +23,7 @@ function getMongoUri(): string {
 
 let prodClientPromise: Promise<MongoClient> | null = null;
 
-function getClientPromise(): Promise<MongoClient> {
+export function getMongoClient(): Promise<MongoClient> {
   const uri = getMongoUri();
   if (process.env.NODE_ENV === "development") {
     if (!global._mongoClientPromise) {
@@ -39,7 +39,7 @@ function getClientPromise(): Promise<MongoClient> {
 }
 
 export async function getDb(): Promise<Db> {
-  const client = await getClientPromise();
+  const client = await getMongoClient();
   const name = process.env.MONGODB_DB_NAME ?? "kid-todos";
   return client.db(name);
 }

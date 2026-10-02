@@ -123,6 +123,9 @@ export function HouseholdSettings({
   return (
     <section className="border-t border-border px-6 pt-10 pb-6">
       <h2 className="text-xl font-bold text-foreground">Household</h2>
+      {removeMut.error || revokeMut.error ? <p role="alert" className="mt-2 text-sm text-red-600">
+        {(removeMut.error ?? revokeMut.error)?.message}
+      </p> : null}
       <p className="mt-1 text-sm text-muted-foreground">
         Share one dashboard and the same routines with another signed-in parent.
         Billing stays with the primary account.

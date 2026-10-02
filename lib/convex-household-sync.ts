@@ -1,45 +1,20 @@
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
+import { getConvexServerSecret } from "@/lib/convex-server-secret";
+import {
+  finalizeHouseholdRevocations,
+  getHouseholdAccessSnapshot,
+} from "@/lib/data/household";
 
-function serverSecret(): string | null {
-  return process.env.CONVEX_SERVER_SECRET?.trim() || null;
-}
-
-export async function convexGrantHouseholdAccess(
-  memberClerkId: string,
-  ownerClerkId: string,
-): Promise<void> {
-  const secret = serverSecret();
-  if (!secret) return;
-  await fetchMutation(api.householdSync.grantAccessFromServer, {
-    secret,
-    memberClerkId,
-    ownerClerkId,
-  });
-}
-
-export async function convexRevokeHouseholdAccess(
-  memberClerkId: string,
-  ownerClerkId: string,
-): Promise<void> {
-  const secret = serverSecret();
-  if (!secret) return;
-  await fetchMutation(api.householdSync.revokeAccessFromServer, {
-    secret,
-    memberClerkId,
-    ownerClerkId,
-  });
-}
-
-export async function convexSyncOwnerMembersFromMongo(
-  ownerClerkId: string,
-  memberClerkIds: string[],
-): Promise<void> {
-  const secret = serverSecret();
-  if (!secret) return;
+/** Pending removals remain in Mongo until this versioned snapshot is acknowledged. */
+export async function convexSyncOwnerMembersFromMongo(ownerClerkId: string): Promise<void> {
+  const secret = getConvexServerSecret();
+  const snapshot = await getHouseholdAccessSnapshot(ownerClerkId);
   await fetchMutation(api.householdSync.syncOwnerMembersFromServer, {
     secret,
     ownerClerkId,
-    memberClerkIds,
+    revision: snapshot.revision,
+    memberClerkIds: snapshot.memberClerkIds,
   });
+  await finalizeHouseholdRevocations(snapshot);
 }

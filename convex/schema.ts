@@ -2,6 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  householdSyncState: defineTable({
+    ownerClerkId: v.string(),
+    revision: v.number(),
+  }).index("by_ownerClerkId", ["ownerClerkId"]),
+
+  deletedChildren: defineTable({
+    ownerUserId: v.string(),
+    childId: v.string(),
+  }).index("by_ownerUserId_and_childId", ["ownerUserId", "childId"]),
   householdAccess: defineTable({
     ownerClerkId: v.string(),
     memberClerkId: v.string(),

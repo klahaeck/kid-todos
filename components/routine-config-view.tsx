@@ -293,6 +293,9 @@ export function RoutineConfigView({
       });
     },
     onSuccess: (_data, variables) => {
+      setTaskDrafts((drafts) => drafts[variables.childId]?.trim() === variables.title
+        ? { ...drafts, [variables.childId]: "" }
+        : drafts);
       invalidate();
       if (!hasAllRoutinesFeature && variables.routine === "morning") {
         setMorningRoutinesTipOpen(true);
@@ -453,6 +456,11 @@ export function RoutineConfigView({
     onSettled: () => invalidate(),
   });
 
+  const mutationError = [addChildMut, addTaskMut, delChildMut, updateChildMut,
+    updateChildTimesMut, delTaskMut, updateTaskMut, reorderMut, reorderChildrenMut]
+    .filter((mutation) => mutation.isError)
+    .sort((a, b) => b.submittedAt - a.submittedAt)[0]?.error;
+
   const childSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -511,6 +519,9 @@ export function RoutineConfigView({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
+      {mutationError ? <p role="alert" className="rounded-xl border border-brand-coral/40 bg-brand-coral/10 p-3 text-sm text-foreground">
+        {mutationError.message}
+      </p> : null}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Routine setup</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -797,7 +808,7 @@ type ConfigChildSectionProps = {
   delTaskMut: { mutate: (task: TaskDTO) => void };
   updateTaskMut: {
     isPending: boolean;
-    mutate: (v: { id: string; title: string }) => void;
+    mutate: (v: { id: string; title: string }, options?: { onSuccess: () => void }) => void;
   };
   reorderMut: {
     isPending: boolean;
@@ -1044,7 +1055,6 @@ function ConfigChildSection({
             onClick={() => {
               updateChildMut.mutate({
                 id: section.child.id,
-                emoji: section.child.emoji ?? null,
                 hiddenOnDashboard: !section.child.hiddenOnDashboard,
               });
             }}
@@ -1339,7 +1349,6 @@ function ConfigChildSection({
             title: t,
             routine,
           });
-          setTaskDrafts((d) => ({ ...d, [draftKey]: "" }));
         }}
       >
         <div className="flex min-w-[160px] flex-1 flex-col gap-2">
@@ -1483,7 +1492,7 @@ function SortableRoutineTaskRow({
   delTaskMut: { mutate: (task: TaskDTO) => void };
   updateTaskMut: {
     isPending: boolean;
-    mutate: (v: { id: string; title: string }) => void;
+    mutate: (v: { id: string; title: string }, options?: { onSuccess: () => void }) => void;
   };
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -1510,8 +1519,10 @@ function SortableRoutineTaskRow({
       setIsEditing(false);
       return;
     }
-    updateTaskMut.mutate({ id: task.id, title: nextTitle });
-    setIsEditing(false);
+    if (updateTaskMut.isPending) return;
+    updateTaskMut.mutate({ id: task.id, title: nextTitle }, {
+      onSuccess: () => setIsEditing(false),
+    });
   }
 
   return (
@@ -1544,6 +1555,7 @@ function SortableRoutineTaskRow({
             <input
               autoFocus
               value={titleDraft}
+              disabled={updateTaskMut.isPending}
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={saveTitle}
               onKeyDown={(e) => {

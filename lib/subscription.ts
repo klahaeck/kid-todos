@@ -125,15 +125,21 @@ async function syncPrimaryEntitlementSnapshotIfOwner(
   await upsertHouseholdEntitlementsFromPrimary(dataOwnerId, ent);
 }
 
-async function entitlementsForBillingUser(ownerClerkId: string): Promise<ResolvedEntitlements> {
+export async function entitlementsForBillingUser(ownerClerkId: string): Promise<ResolvedEntitlements> {
   const cached = await getHouseholdEntitlementsForOwner(ownerClerkId);
-  if (cached) {
+  // Stale snapshots must never extend access after the owner stops visiting.
+  const age = cached ? Date.now() - cached.updatedAt.getTime() : Infinity;
+  if (cached && age >= 0 && age < 60_000) {
     return entitlementsDocToSnapshot(cached);
   }
   try {
     const client = await clerkClient();
-    const sub = await client.billing.getUserBillingSubscription(ownerClerkId);
-    return entitlementsFromBillingSubscription(sub);
+    const owner = await client.users.getUser(ownerClerkId);
+    const ent = roleGrantsAllFeatures(owner)
+      ? { ...ALL_ENTITLEMENTS }
+      : entitlementsFromBillingSubscription(await client.billing.getUserBillingSubscription(ownerClerkId));
+    await upsertHouseholdEntitlementsFromPrimary(ownerClerkId, ent);
+    return ent;
   } catch {
     return { ...NO_ENTITLEMENTS };
   }

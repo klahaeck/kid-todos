@@ -81,26 +81,14 @@ export async function deleteChildCascade(
   childId: ObjectId,
   options?: { convexToken: string | null },
 ): Promise<boolean> {
-  const { deleteChildForUser } = await import("@/lib/data/children");
-  const { api } = await import("@/convex/_generated/api");
-  const ok = await deleteChildForUser(userId, childId);
-  if (!ok) return false;
   const token = options?.convexToken;
-  if (token && process.env.NEXT_PUBLIC_CONVEX_URL) {
-    try {
-      await fetchMutation(
-        api.tasks.deleteAllForChild,
-        { ownerUserId: userId, childId: childId.toHexString() },
-        { token },
-      );
-      await fetchMutation(
-        api.completions.removeForChild,
-        { ownerUserId: userId, childId: childId.toHexString() },
-        { token },
-      );
-    } catch {
-      /* Convex delete best-effort; child is already removed from Mongo */
-    }
+  if (!token || !process.env.NEXT_PUBLIC_CONVEX_URL) {
+    throw new Error("Realtime tasks unavailable. Try deleting again once connected.");
   }
-  return true;
+  const { deleteChildAcrossStores } = await import("@/lib/data/child-deletion");
+  return deleteChildAcrossStores(userId, childId, () => fetchMutation(
+    api.tasks.deleteAllForChild,
+    { ownerUserId: userId, childId: childId.toHexString() },
+    { token },
+  ));
 }

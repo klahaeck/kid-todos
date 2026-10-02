@@ -1,6 +1,7 @@
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { assertChildNotDeleted } from "./childLifecycle";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -80,6 +81,7 @@ export const toggleForDay = mutation({
       throw new Error("Task not found");
     }
 
+    await assertChildNotDeleted(ctx, args.ownerUserId, args.childId);
     const existing = await ctx.db
       .query("taskCompletions")
       .withIndex("by_ownerUserId_and_date_and_taskId", (q) =>

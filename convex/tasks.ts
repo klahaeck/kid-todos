@@ -1,6 +1,7 @@
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { assertChildNotDeleted, deleteChildBatch } from "./childLifecycle";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -124,6 +125,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await assertCanAccessOwner(ctx, args.ownerUserId);
+    await assertChildNotDeleted(ctx, args.ownerUserId, args.childId);
     const title = args.title.trim();
     if (!title) {
       throw new Error("Title required");
@@ -182,6 +184,7 @@ export const update = mutation({
     if (!task || task.ownerUserId !== args.ownerUserId) {
       throw new Error("Task not found");
     }
+    await assertChildNotDeleted(ctx, args.ownerUserId, task.childId);
     const patch: {
       title?: string;
       routine?: "morning" | "evening";
@@ -269,25 +272,7 @@ export const deleteAllForChild = mutation({
   },
   handler: async (ctx, args) => {
     await assertCanAccessOwner(ctx, args.ownerUserId);
-    const rows = await ctx.db
-      .query("tasks")
-      .withIndex("by_owner_child", (q) =>
-        q.eq("ownerUserId", args.ownerUserId).eq("childId", args.childId),
-      )
-      .collect();
-    for (const row of rows) {
-      await ctx.db.delete(row._id);
-    }
-    const completionRows = await ctx.db
-      .query("taskCompletions")
-      .withIndex("by_ownerUserId_and_childId", (q) =>
-        q.eq("ownerUserId", args.ownerUserId).eq("childId", args.childId),
-      )
-      .collect();
-    for (const row of completionRows) {
-      await ctx.db.delete(row._id);
-    }
-    return { ok: true as const };
+    return deleteChildBatch(ctx, args.ownerUserId, args.childId);
   },
 });
 
@@ -353,6 +338,7 @@ export const adminCreate = mutation({
   },
   handler: async (ctx, args) => {
     requireServerSecret(args.secret);
+    await assertChildNotDeleted(ctx, args.ownerUserId, args.childId);
     const title = args.title.trim();
     if (!title) throw new Error("Title required");
     const sameRoutine = await ctx.db
@@ -398,23 +384,11 @@ export const adminCreate = mutation({
 export const adminDeleteAllTasksForChild = mutation({
   args: {
     secret: v.string(),
+    ownerUserId: v.string(),
     childId: v.string(),
   },
   handler: async (ctx, args) => {
     requireServerSecret(args.secret);
-    const rows = await ctx.db.query("tasks").collect();
-    for (const row of rows) {
-      if (row.childId === args.childId) {
-        await ctx.db.delete(row._id);
-      }
-    }
-    const completionRows = await ctx.db
-      .query("taskCompletions")
-      .withIndex("by_childId", (q) => q.eq("childId", args.childId))
-      .collect();
-    for (const row of completionRows) {
-      await ctx.db.delete(row._id);
-    }
-    return { ok: true as const };
+    return deleteChildBatch(ctx, args.ownerUserId, args.childId);
   },
 });

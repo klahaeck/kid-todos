@@ -9,7 +9,7 @@ import {
   useQuery as useRqQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useQuery as useConvexQuery } from "convex/react";
+import { useMutation as useConvexMutation, useQuery as useConvexQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
   useCallback,
@@ -21,7 +21,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { getDashboardData } from "@/app/actions/dashboard";
-import { toggleTaskCompletionAction } from "@/app/actions/completions";
+import { optimisticToggleCompletion } from "@/lib/optimistic-completions";
+import type { Id } from "@/convex/_generated/dataModel";
 import { calendarDateInTimezone } from "@/lib/date";
 import { queryKeys } from "@/lib/query-keys";
 import type {
@@ -230,62 +231,19 @@ export function DashboardView({
     }
   }, [nowMs, dashboardQuery.data, queryClient]);
 
-  const updateOptimisticCompletion = (
-    current: DashboardDTO | undefined,
-    vars: { childId: string; taskId: string },
-    forceCompleted?: boolean,
-  ): DashboardDTO | undefined => {
-    if (!current) return current;
-
-    return {
-      ...current,
-      children: current.children.map((section) => {
-        if (section.child.id !== vars.childId) return section;
-
-        const currentlyDone = section.completedTaskIds.includes(vars.taskId);
-        const nextDone = forceCompleted ?? !currentlyDone;
-        const completedTaskIds = nextDone
-          ? section.completedTaskIds.includes(vars.taskId)
-            ? section.completedTaskIds
-            : [...section.completedTaskIds, vars.taskId]
-          : section.completedTaskIds.filter((id) => id !== vars.taskId);
-
-        return {
-          ...section,
-          completedTaskIds,
-        };
-      }),
-    };
-  };
-
+  const toggleCompletionConvex = useConvexMutation(api.completions.toggleForDay)
+    .withOptimisticUpdate(optimisticToggleCompletion);
   const toggleMut = useMutation({
     mutationKey: toggleMutationKey,
     mutationFn: async (vars: { childId: string; taskId: string }) => {
-      const r = await toggleTaskCompletionAction(vars.childId, vars.taskId);
-      if (!r.ok) throw new Error(r.error);
-      return r.data;
-    },
-    onMutate: async (vars) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.dashboard });
-      const previousDashboard = queryClient.getQueryData<DashboardDTO>(
-        queryKeys.dashboard,
-      );
-
-      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) =>
-        updateOptimisticCompletion(current, vars),
-      );
-
-      return { previousDashboard };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previousDashboard) {
-        queryClient.setQueryData(queryKeys.dashboard, context.previousDashboard);
-      }
-    },
-    onSuccess: (result, vars) => {
-      queryClient.setQueryData<DashboardDTO>(queryKeys.dashboard, (current) =>
-        updateOptimisticCompletion(current, vars, result.completed),
-      );
+      const current = dashboardQuery.data;
+      if (!current) throw new Error("Dashboard is not loaded.");
+      return toggleCompletionConvex({
+        ownerUserId: current.dataOwnerId,
+        childId: vars.childId,
+        taskId: vars.taskId as Id<"tasks">,
+        date: calendarDateInTimezone(current.profile.timezone),
+      });
     },
     onSettled: () => invalidate(),
   });
@@ -420,6 +378,9 @@ export function DashboardView({
     <div
       className={`dashboard-font-scope flex w-full flex-col gap-8 px-4 py-8 pb-16 ${fontClassName}`}
     >
+      {toggleMut.error ? <p role="alert" className="text-center text-sm text-red-600">
+        {toggleMut.error.message}
+      </p> : null}
       <Button
         variant="ghost"
         size="icon"

@@ -111,26 +111,16 @@ export async function buildAdminOverview(): Promise<AdminOverviewDTO> {
 
 export async function adminDeleteChild(childHexId: string): Promise<boolean> {
   const { ObjectId } = await import("mongodb");
-  const childId = new ObjectId(childHexId);
   const { getDb, ensureIndexes } = await import("@/lib/mongodb");
+  const { deleteChildAcrossStores } = await import("@/lib/data/child-deletion");
   await ensureIndexes();
+  const childId = new ObjectId(childHexId);
   const db = await getDb();
-  const r = await db.collection("children").deleteOne({ _id: childId });
-  if (r.deletedCount !== 1) return false;
-  try {
-    if (process.env.NEXT_PUBLIC_CONVEX_URL) {
-      const secret = getConvexServerSecret();
-      await fetchMutation(api.tasks.adminDeleteAllTasksForChild, {
-        secret,
-        childId: childHexId,
-      });
-      await fetchMutation(api.completions.adminDeleteAllForChild, {
-        secret,
-        childId: childHexId,
-      });
-    }
-  } catch {
-    /* best-effort */
-  }
-  return true;
+  const child = await db.collection<import("@/lib/types").ChildDoc>("children").findOne({ _id: childId });
+  if (!child) return false;
+  const secret = getConvexServerSecret();
+  return deleteChildAcrossStores(child.userId, childId, () => fetchMutation(
+    api.tasks.adminDeleteAllTasksForChild,
+    { secret, ownerUserId: child.userId, childId: childHexId },
+  ));
 }
