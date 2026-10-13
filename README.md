@@ -60,8 +60,11 @@ paid access. Existing admin/friend role grants are preserved.
 
 ## Complimentary billing access
 
-Set `complimentaryAccess: true` in a user's Clerk private metadata to grant all
-subscription entitlements to that account without a paid plan.
+Set `complimentaryAccess: true` in the billing primary's Clerk private metadata
+to grant all subscription entitlements to that household without a paid plan.
+Household members inherit the primary's access; setting the flag on a member
+does not grant access. Entitlement snapshots can delay grants or revocations by
+up to one minute.
 
 ## Deployment
 
