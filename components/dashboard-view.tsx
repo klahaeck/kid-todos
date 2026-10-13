@@ -688,7 +688,6 @@ function TaskTapButton({
   onTap: () => void;
 }) {
   const { addConfetti } = useConfetti();
-  const suppressNextClickRef = useRef(false);
   const fireTap = useCallback(() => {
     onTap();
     if (!complete && !skipConfetti) {
@@ -701,26 +700,9 @@ function TaskTapButton({
       type="button"
       disabled={disabled}
       aria-pressed={complete}
-      onPointerDown={(e) => {
-        if (e.pointerType === "touch") {
-          e.preventDefault();
-        }
-      }}
-      onPointerUp={(e) => {
-        if (e.pointerType !== "touch") return;
-        e.preventDefault();
-        suppressNextClickRef.current = true;
-        fireTap();
-      }}
-      onClick={(e) => {
-        e.preventDefault();
-        if (suppressNextClickRef.current) {
-          suppressNextClickRef.current = false;
-          return;
-        }
-        fireTap();
-      }}
-      className={`group relative flex h-full min-h-30 w-full touch-none select-none items-center justify-center gap-3 rounded-3xl border-2 px-4 py-5 text-left text-lg font-bold leading-snug shadow-[0_5px_0_var(--task-edge),inset_0_2px_0_rgba(255,255,255,0.6)] transition-[background-color,border-color,transform,box-shadow] duration-200 hover:-translate-y-1 active:translate-y-1 active:scale-[0.97] active:shadow-[0_1px_0_var(--task-edge)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transform-none sm:min-h-34 sm:px-5 sm:text-xl ${
+      // Native clicks distinguish taps from scrolling; manipulation allows panning and pinch zoom.
+      onClick={fireTap}
+      className={`group relative flex h-full min-h-30 w-full touch-manipulation select-none items-center justify-center gap-3 rounded-3xl border-2 px-4 py-5 text-left text-lg font-bold leading-snug shadow-[0_5px_0_var(--task-edge),inset_0_2px_0_rgba(255,255,255,0.6)] transition-[background-color,border-color,transform,box-shadow] duration-200 hover:-translate-y-1 active:translate-y-1 active:scale-[0.97] active:shadow-[0_1px_0_var(--task-edge)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transform-none sm:min-h-34 sm:px-5 sm:text-xl ${
         complete
           ? "border-(--kid-done-border) bg-(--kid-done-bg) text-(--kid-done-fg)"
           : "border-(--kid-todo-border) bg-(--kid-todo-bg) text-(--kid-todo-fg) hover:brightness-[0.97]"

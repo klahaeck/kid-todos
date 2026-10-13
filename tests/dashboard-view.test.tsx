@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DashboardView } from "@/components/dashboard-view";
@@ -77,6 +77,68 @@ test("progress counts only this child's current routine and preserves their font
   expect(screen.getByRole("button", { name: "Put toys away" }).textContent).toContain("🚀");
   expect(container.querySelector(".dashboard-font-scope")?.classList.contains("saved-fredoka-font")).toBe(true);
   expect(effects.fireworks).not.toHaveBeenCalled();
+});
+
+test.each(["Brush teeth", "Put toys away"])("a touch scroll starting on %s leaves task completion unchanged", (title) => {
+  mount();
+  const button = screen.getByRole("button", { name: title });
+  const pressed = button.getAttribute("aria-pressed");
+  const pointer = { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: 100, clientY: 200 };
+
+  // Let the browser take over the gesture for scrolling and cancel the pointer.
+  expect(fireEvent.pointerDown(button, pointer)).toBe(true);
+  fireEvent.pointerMove(button, { ...pointer, clientY: 100 });
+  fireEvent.pointerCancel(button, { ...pointer, clientY: 100 });
+
+  expect(button.getAttribute("aria-pressed")).toBe(pressed);
+  expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("1");
+  expect(effects.toggle).not.toHaveBeenCalled();
+  expect(effects.confetti).not.toHaveBeenCalled();
+  expect(effects.fireworks).not.toHaveBeenCalled();
+});
+
+test("a touch release waits for the browser's click before completing a task", async () => {
+  mount();
+  const button = screen.getByRole("button", { name: "Brush teeth" });
+  const pointer = { pointerId: 1, pointerType: "touch", isPrimary: true };
+
+  await act(async () => {
+    fireEvent.pointerDown(button, pointer);
+    fireEvent.pointerUp(button, pointer);
+  });
+  expect(effects.toggle).not.toHaveBeenCalled();
+  expect(effects.fireworks).not.toHaveBeenCalled();
+  expect(button.getAttribute("aria-pressed")).toBe("false");
+
+  fireEvent.click(button);
+  await waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("true"));
+  expect(effects.toggle).toHaveBeenCalledTimes(1);
+});
+
+test("touch taps complete and undo a task once per tap", async () => {
+  dashboard.children[0].completedTaskIds = ["morning"];
+  const { user } = mount();
+  const button = screen.getByRole("button", { name: "Put toys away" });
+
+  await user.pointer({ keys: "[TouchA]", target: button });
+  await waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("true"));
+  expect(effects.toggle).toHaveBeenCalledTimes(1);
+  expect(effects.confetti).toHaveBeenCalledTimes(1);
+
+  await user.pointer({ keys: "[TouchA]", target: button });
+  await waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("false"));
+  expect(effects.toggle).toHaveBeenCalledTimes(2);
+  expect(effects.confetti).toHaveBeenCalledTimes(1);
+});
+
+test.each(["{Enter}", " "])("task buttons still work with the %s key", async (key) => {
+  const { user } = mount();
+  const button = screen.getByRole("button", { name: "Brush teeth" });
+  button.focus();
+
+  await user.keyboard(key);
+  await waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("true"));
+  expect(effects.toggle).toHaveBeenCalledTimes(1);
 });
 
 test("finishing the last step fills the progress bar and keeps the fireworks and animated headline", async () => {
