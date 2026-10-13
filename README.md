@@ -2,6 +2,9 @@
 
 Family routine management built with Next.js, Clerk, MongoDB, and Convex.
 
+StarrySteps helps families build calm, positive morning and evening routines for
+children. Visit [starrysteps.com](https://www.starrysteps.com).
+
 ## Local development
 
 Use Node.js 24.15 or newer in the 24 LTS series. Install with `npm ci`, copy
