@@ -37,6 +37,16 @@ async function subscriptionBypassFromRole(): Promise<boolean> {
   return roleGrantsAllFeatures(user);
 }
 
+async function userHasComplimentaryAccess(ownerClerkId: string): Promise<boolean> {
+  try {
+    const client = await clerkClient();
+    const owner = await client.users.getUser(ownerClerkId);
+    return owner.privateMetadata?.complimentaryAccess === true;
+  } catch {
+    return false;
+  }
+}
+
 export type ResolvedEntitlements = {
   isMonthlySubscriber: boolean;
   hasMultipleChildrenFeature: boolean;
@@ -135,7 +145,9 @@ export async function entitlementsForBillingUser(ownerClerkId: string): Promise<
   try {
     const client = await clerkClient();
     const owner = await client.users.getUser(ownerClerkId);
-    const ent = roleGrantsAllFeatures(owner)
+    const ent =
+      roleGrantsAllFeatures(owner) ||
+      owner.privateMetadata?.complimentaryAccess === true
       ? { ...ALL_ENTITLEMENTS }
       : entitlementsFromBillingSubscription(await client.billing.getUserBillingSubscription(ownerClerkId));
     await upsertHouseholdEntitlementsFromPrimary(ownerClerkId, ent);
@@ -156,7 +168,9 @@ async function effectiveEntitlements(): Promise<ResolvedEntitlements | null> {
   }
   const ctx = await householdContextForUserId(userId);
   if (ctx.dataOwnerId === userId) {
-    const ent = entitlementsFromSessionHas(has);
+    const ent = (await userHasComplimentaryAccess(userId))
+      ? { ...ALL_ENTITLEMENTS }
+      : entitlementsFromSessionHas(has);
     await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
     return ent;
   }
@@ -182,6 +196,16 @@ export async function getSubscriptionAccess(): Promise<SubscriptionAccess> {
   const ctx = await householdContextForUserId(userId);
 
   if (await subscriptionBypassFromRole()) {
+    const ent = { ...ALL_ENTITLEMENTS };
+    await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
+    return {
+      isAuthenticated: true,
+      isPrimary: ctx.isPrimary,
+      ...ent,
+    };
+  }
+
+  if (ctx.dataOwnerId === userId && (await userHasComplimentaryAccess(userId))) {
     const ent = { ...ALL_ENTITLEMENTS };
     await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
     return {
