@@ -32,11 +32,6 @@ function canAccess(has: AuthHas | undefined, access: PlanAccess): boolean {
   return has(access);
 }
 
-async function subscriptionBypassFromRole(): Promise<boolean> {
-  const user = await currentUser();
-  return roleGrantsAllFeatures(user);
-}
-
 export type ResolvedEntitlements = {
   isMonthlySubscriber: boolean;
   hasMultipleChildrenFeature: boolean;
@@ -135,7 +130,9 @@ export async function entitlementsForBillingUser(ownerClerkId: string): Promise<
   try {
     const client = await clerkClient();
     const owner = await client.users.getUser(ownerClerkId);
-    const ent = roleGrantsAllFeatures(owner)
+    const ent =
+      roleGrantsAllFeatures(owner) ||
+      owner.privateMetadata?.complimentaryAccess === true
       ? { ...ALL_ENTITLEMENTS }
       : entitlementsFromBillingSubscription(await client.billing.getUserBillingSubscription(ownerClerkId));
     await upsertHouseholdEntitlementsFromPrimary(ownerClerkId, ent);
@@ -148,15 +145,17 @@ export async function entitlementsForBillingUser(ownerClerkId: string): Promise<
 async function effectiveEntitlements(): Promise<ResolvedEntitlements | null> {
   const { userId, has, isAuthenticated } = await auth();
   if (!userId || !isAuthenticated) return null;
-  if (await subscriptionBypassFromRole()) {
-    const ctx = await householdContextForUserId(userId);
+  const viewer = await currentUser();
+  const ctx = await householdContextForUserId(userId);
+  if (roleGrantsAllFeatures(viewer)) {
     const ent = { ...ALL_ENTITLEMENTS };
     await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
     return ent;
   }
-  const ctx = await householdContextForUserId(userId);
   if (ctx.dataOwnerId === userId) {
-    const ent = entitlementsFromSessionHas(has);
+    const ent = viewer?.privateMetadata?.complimentaryAccess === true
+      ? { ...ALL_ENTITLEMENTS }
+      : entitlementsFromSessionHas(has);
     await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
     return ent;
   }
@@ -179,9 +178,20 @@ export async function getSubscriptionAccess(): Promise<SubscriptionAccess> {
     };
   }
 
+  const viewer = await currentUser();
   const ctx = await householdContextForUserId(userId);
 
-  if (await subscriptionBypassFromRole()) {
+  if (roleGrantsAllFeatures(viewer)) {
+    const ent = { ...ALL_ENTITLEMENTS };
+    await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
+    return {
+      isAuthenticated: true,
+      isPrimary: ctx.isPrimary,
+      ...ent,
+    };
+  }
+
+  if (ctx.dataOwnerId === userId && viewer?.privateMetadata?.complimentaryAccess === true) {
     const ent = { ...ALL_ENTITLEMENTS };
     await syncPrimaryEntitlementSnapshotIfOwner(userId, ctx.dataOwnerId, ent);
     return {
