@@ -58,6 +58,11 @@ Household members use the primary's entitlement snapshot for at most one minute.
 Expired snapshots refresh from Clerk, and refresh errors do not extend expired
 paid access. Existing admin/friend role grants are preserved.
 
+## Complimentary billing access
+
+Set `complimentaryAccess: true` in a user's Clerk private metadata to grant all
+subscription entitlements to that account without a paid plan.
+
 ## Deployment
 
 Deploy the Convex schema/functions and web app as a coordinated release: the new
